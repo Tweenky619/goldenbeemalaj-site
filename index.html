@@ -501,7 +501,7 @@
     fetch('https://app.goldenbeemalaj.com/api/discount-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contact: contact, source: 'scratch_card' })
+      body: JSON.stringify({ name: name, contact: contact, source: 'scratch_card' })
     }).then(function(r){
       return r.json().catch(function(){ return { error: 'Unexpected response' }; });
     }).then(function(res){
