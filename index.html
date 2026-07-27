@@ -71,7 +71,8 @@
   /* Series */
   .series { background: #f1ead7; }
   .series-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; max-width: 1050px; margin: 0 auto; }
-  .series-card { background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e8dfc8; text-align: center; }
+  .series-card { background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e8dfc8; text-align: center; display: block; text-decoration: none; transition: box-shadow 0.15s, transform 0.15s; }
+  .series-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.12); transform: translateY(-2px); }
   .series-card img { width: 100%; height: 190px; object-fit: cover; }
   .series-card h3 { padding: 0.9rem 0.5rem 0.2rem; font-family: Arial, Helvetica, sans-serif; font-size: 1.05rem; color: var(--dark); }
   .series-card h3 small { color: var(--gold); font-weight: normal; }
@@ -255,15 +256,15 @@
   <hr class="gold-rule">
   <p class="section-sub">Each series features region-inspired artwork celebrating the virtues and landscapes of its state. All available now — contact us for today's pricing and availability.</p>
   <div class="series-grid">
-    <div class="series-card"><img src="images/utah/2022-utah-series-fan.jpg" alt="Utah Goldback series"><h3>Utah <small>· est. 2019</small></h3><p>The original series. Classical virtues brought to life — a pioneer woman with her beehive for Industry, figures for Truth, Steadfastness, Religious Freedom, and Triumph.</p></div>
-    <div class="series-card"><img src="images/nevada/2023-nevada-series-fan.jpg" alt="Nevada Goldback series"><h3>Nevada <small>· est. 2020</small></h3><p>The Silver State's story — prospectors, cowboys, and entertainers weave Nevada's mining and frontier identity into each virtue.</p></div>
-    <div class="series-card"><img src="images/new-hampshire/2023-new-hampshire-series-fan.jpg" alt="New Hampshire Goldback series"><h3>New Hampshire <small>· est. 2021</small></h3><p>"Live Free or Die" — colonial-era figures, militia imagery, and the Old Man of the Mountain celebrate revolutionary heritage and liberty.</p></div>
-    <div class="series-card"><img src="images/wyoming/2022-wyoming-series-fan.jpg" alt="Wyoming Goldback series"><h3>Wyoming <small>· est. 2022</small></h3><p>Reverence, Industry, Trust, Fidelity, and Liberty — set against Native American imagery and Wyoming's natural beauty.</p></div>
-    <div class="series-card"><img src="images/south-dakota/2023-south-dakota-alpha-series-fan.jpg" alt="South Dakota Goldback series"><h3>South Dakota <small>· est. 2023</small></h3><p>Truth, Temperance, Diligence, Kindness, and Humility — honoring the state's agricultural heritage and natural landmarks.</p></div>
-    <div class="series-card"><img src="images/florida/FL25-Front-1.jpg" alt="Florida Goldback series"><h3>Florida <small>· est. 2025</small></h3><p>From St. Augustine and Seminole figures in the Everglades to lighthouses and rockets — the Sunshine State's multicultural story in gold.</p></div>
-    <div class="series-card"><img src="images/oklahoma/Oklahoma Nature LS 1.jpg" alt="Oklahoma Goldback series"><h3>Oklahoma <small>· est. 2025</small></h3><p>Hospitality, Courage, Unity, Progress, and Heritage — honoring Oklahoma's Native American roots and pioneer spirit.</p></div>
-    <div class="series-card"><img src="images/arizona/AZ25-Alpha-Front-1.jpg" alt="Arizona Goldback series"><h3>Arizona <small>· est. 2025</small></h3><p>Valor with the Buffalo Soldiers, Faith at Mission San Xavier del Bac, and Liberty honoring the Navajo Code Talkers — amid desert landscapes.</p></div>
-    <div class="series-card"><img src="images/idaho/Idaho Studio Group 1.jpg" alt="Idaho Goldback series"><h3>Idaho <small>· est. 2026</small></h3><p>The newest series. Classical virtues like Justitia — scales raised, sword lowered — set among Idaho's wilderness.</p></div>
+    <a class="series-card" href="series/utah.html"><img src="images/utah/2022-utah-series-fan.jpg" alt="Utah Goldback series"><h3>Utah <small>· est. 2019</small></h3><p>The original series. Classical virtues brought to life — a pioneer woman with her beehive for Industry, figures for Truth, Steadfastness, Religious Freedom, and Triumph.</p></a>
+    <a class="series-card" href="series/nevada.html"><img src="images/nevada/2023-nevada-series-fan.jpg" alt="Nevada Goldback series"><h3>Nevada <small>· est. 2020</small></h3><p>The Silver State's story — prospectors, cowboys, and entertainers weave Nevada's mining and frontier identity into each virtue.</p></a>
+    <a class="series-card" href="series/new-hampshire.html"><img src="images/new-hampshire/2023-new-hampshire-series-fan.jpg" alt="New Hampshire Goldback series"><h3>New Hampshire <small>· est. 2021</small></h3><p>"Live Free or Die" — colonial-era figures, militia imagery, and the Old Man of the Mountain celebrate revolutionary heritage and liberty.</p></a>
+    <a class="series-card" href="series/wyoming.html"><img src="images/wyoming/2022-wyoming-series-fan.jpg" alt="Wyoming Goldback series"><h3>Wyoming <small>· est. 2022</small></h3><p>Reverence, Industry, Trust, Fidelity, and Liberty — set against Native American imagery and Wyoming's natural beauty.</p></a>
+    <a class="series-card" href="series/south-dakota.html"><img src="images/south-dakota/2023-south-dakota-alpha-series-fan.jpg" alt="South Dakota Goldback series"><h3>South Dakota <small>· est. 2023</small></h3><p>Truth, Temperance, Diligence, Kindness, and Humility — honoring the state's agricultural heritage and natural landmarks.</p></a>
+    <a class="series-card" href="series/florida.html"><img src="images/florida/FL25-Front-1.jpg" alt="Florida Goldback series"><h3>Florida <small>· est. 2025</small></h3><p>From St. Augustine and Seminole figures in the Everglades to lighthouses and rockets — the Sunshine State's multicultural story in gold.</p></a>
+    <a class="series-card" href="series/oklahoma.html"><img src="images/oklahoma/Oklahoma Nature LS 1.jpg" alt="Oklahoma Goldback series"><h3>Oklahoma <small>· est. 2025</small></h3><p>Hospitality, Courage, Unity, Progress, and Heritage — honoring Oklahoma's Native American roots and pioneer spirit.</p></a>
+    <a class="series-card" href="series/arizona.html"><img src="images/arizona/AZ25-Alpha-Front-1.jpg" alt="Arizona Goldback series"><h3>Arizona <small>· est. 2025</small></h3><p>Valor with the Buffalo Soldiers, Faith at Mission San Xavier del Bac, and Liberty honoring the Navajo Code Talkers — amid desert landscapes.</p></a>
+    <a class="series-card" href="series/idaho.html"><img src="images/idaho/Idaho Studio Group 1.jpg" alt="Idaho Goldback series"><h3>Idaho <small>· est. 2026</small></h3><p>The newest series. Classical virtues like Justitia — scales raised, sword lowered — set among Idaho's wilderness.</p></a>
   </div>
   <p style="text-align:center;margin-top:2rem;"><a class="btn btn-gold" href="catalog.html">Browse the Full Catalog — Every Denomination</a></p>
 </section>
