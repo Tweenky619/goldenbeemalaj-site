@@ -134,51 +134,39 @@
   .scratch { background: var(--dark-2); color: var(--cream); text-align: center; }
   .scratch .section-title { color: var(--gold-light); }
   .scratch .section-sub { color: #cfc6b0; }
-  .scratch-card-wrap { max-width: 320px; margin: 0 auto; }
-  .scratch-card {
+  .logo-grid-wrap { max-width: 340px; margin: 0 auto; }
+  .logo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .logo-tile {
     position: relative;
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    border-radius: 14px;
-    overflow: hidden;
-    cursor: pointer;
+    aspect-ratio: 1 / 1;
+    border-radius: 10px;
+    background: var(--dark);
     border: 2px solid var(--gold);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-  }
-  .scratch-foil {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, #b8860f 0%, var(--gold) 45%, #f0c94a 55%, var(--gold) 100%);
+    cursor: pointer;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-direction: column;
-    color: var(--dark);
-    font-family: Arial, Helvetica, sans-serif;
-    font-weight: bold;
-    transition: transform 0.6s ease, opacity 0.6s ease;
+    transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
   }
-  .scratch-foil .icon { font-size: 2.2rem; margin-bottom: 0.4rem; }
-  .scratch-foil .tap-label { font-size: 0.95rem; letter-spacing: 0.04em; }
-  .scratch-card.revealed .scratch-foil {
-    transform: scale(1.4) rotate(8deg);
-    opacity: 0;
-    pointer-events: none;
-  }
-  .scratch-reveal {
-    position: absolute;
-    inset: 0;
-    background: var(--cream);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    padding: 1rem;
-    text-align: center;
-  }
-  .scratch-reveal .win-icon { font-size: 2rem; margin-bottom: 0.3rem; }
-  .scratch-reveal .win-text { font-family: Georgia, serif; font-size: 1.15rem; color: var(--text); font-weight: bold; }
-  .scratch-reveal .win-sub { font-family: Arial, Helvetica, sans-serif; font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; }
+  .logo-tile:hover { transform: translateY(-2px); }
+  .logo-tile img { width: 62%; height: 62%; object-fit: contain; opacity: 0.14; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+  .logo-tile.selected { border-color: var(--gold-light); box-shadow: 0 0 0 3px rgba(212,175,55,0.35) inset; }
+  .logo-tile.correct { border-color: #4caf6a; }
+  .logo-tile.correct img, .logo-tile.missed img { opacity: 0.95; }
+  .logo-tile.missed { border-color: #4caf6a; border-style: dashed; }
+  .logo-tile.wrong { border-color: #c96a52; opacity: 0.55; }
+  .logo-grid.locked .logo-tile { cursor: default; }
+  .grid-pick-count { margin-top: 0.7rem; font-family: Arial, Helvetica, sans-serif; font-size: 0.85rem; color: #cfc6b0; }
+  .grid-result { max-width: 420px; margin: 1.2rem auto 0; text-align: center; display: none; }
+  .grid-result.visible { display: block; }
+  .grid-result .win-icon { font-size: 2rem; margin-bottom: 0.3rem; }
+  .grid-result .win-text { font-family: Georgia, serif; font-size: 1.15rem; color: var(--cream); font-weight: bold; }
+  .grid-result .win-sub { font-family: Arial, Helvetica, sans-serif; font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; }
   .scratch-honesty { max-width: 460px; margin: 1rem auto 0; font-size: 0.82rem; color: #a89e8a; font-family: Arial, Helvetica, sans-serif; font-style: italic; }
 
   .claim-form { max-width: 420px; margin: 1.8rem auto 0; text-align: left; display: none; }
@@ -309,21 +297,17 @@
 <section class="scratch" id="scratch-win">
   <h2 class="section-title">Try Your Luck</h2>
   <hr class="gold-rule">
-  <p class="section-sub">Every scratch wins. Find out what.</p>
-  <div class="scratch-card-wrap">
-    <div class="scratch-card" id="scratchCard" role="button" tabindex="0" aria-label="Tap to scratch and reveal your prize">
-      <div class="scratch-reveal">
-        <div class="win-icon">🎉</div>
-        <div class="win-text">You won 0.25% off<br>your first exchange.</div>
-        <div class="win-sub">Enter your info below to claim your code.</div>
-      </div>
-      <div class="scratch-foil" id="scratchFoil">
-        <div class="icon">🐝</div>
-        <div class="tap-label">TAP TO SCRATCH</div>
-      </div>
+  <p class="section-sub">Find all 3 hidden Goldenbee logos among the 9 tiles — the more you spot, the more you save.</p>
+  <div class="logo-grid-wrap">
+    <div class="logo-grid" id="logoGrid" role="group" aria-label="Pick 3 tiles where you think the faint Goldenbee logo is hiding"></div>
+    <p class="grid-pick-count" id="gridPickCount">Pick 3 tiles &mdash; 0 of 3 selected</p>
+    <div class="grid-result" id="gridResult">
+      <div class="win-icon">🎉</div>
+      <div class="win-text" id="gridResultText"></div>
+      <div class="win-sub">Enter your info below to claim your code.</div>
     </div>
   </div>
-  <p class="scratch-honesty">Every play wins the same reward — we just think revealing it is more fun than a form.</p>
+  <p class="scratch-honesty">Every play wins a real discount code &mdash; the more logos you correctly spot out of 3, the bigger your discount. No purchase necessary to play.</p>
 
   <div class="claim-form" id="claimForm">
     <form id="scratchClaimForm" novalidate>
@@ -508,20 +492,87 @@
 })();
 
 (function(){
-  var card = document.getElementById('scratchCard');
+  var grid = document.getElementById('logoGrid');
   var claimForm = document.getElementById('claimForm');
-  if (!card) return;
+  var pickCount = document.getElementById('gridPickCount');
+  var gridResult = document.getElementById('gridResult');
+  var gridResultText = document.getElementById('gridResultText');
+  if (!grid) return;
 
-  function reveal() {
-    if (card.classList.contains('revealed')) return;
-    card.classList.add('revealed');
+  var LOGO_SRC = 'images/brand/goldenbee-malaj-logo.jpg';
+  var TILE_COUNT = 9;
+  var LOGO_TILE_COUNT = 3;
+
+  // Pick 3 unique random tile indices to hide the faint logo in.
+  var logoIndices = [];
+  while (logoIndices.length < LOGO_TILE_COUNT) {
+    var idx = Math.floor(Math.random() * TILE_COUNT);
+    if (logoIndices.indexOf(idx) === -1) logoIndices.push(idx);
+  }
+
+  var selected = [];
+  var locked = false;
+  var matches = 0;
+
+  for (var i = 0; i < TILE_COUNT; i++) {
+    (function (index) {
+      var tile = document.createElement('div');
+      tile.className = 'logo-tile';
+      tile.setAttribute('role', 'button');
+      tile.setAttribute('tabindex', '0');
+      tile.setAttribute('aria-label', 'Tile ' + (index + 1));
+      if (logoIndices.indexOf(index) !== -1) {
+        var img = document.createElement('img');
+        img.src = LOGO_SRC;
+        img.alt = '';
+        img.draggable = false;
+        tile.appendChild(img);
+      }
+      function activate() {
+        if (locked) return;
+        var pos = selected.indexOf(index);
+        if (pos !== -1) {
+          selected.splice(pos, 1);
+          tile.classList.remove('selected');
+        } else {
+          if (selected.length >= 3) return;
+          selected.push(index);
+          tile.classList.add('selected');
+        }
+        pickCount.textContent = 'Pick 3 tiles — ' + selected.length + ' of 3 selected';
+        if (selected.length === 3) finish();
+      }
+      tile.addEventListener('click', activate);
+      tile.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+      });
+      grid.appendChild(tile);
+    })(i);
+  }
+
+  function finish() {
+    locked = true;
+    grid.classList.add('locked');
+    matches = 0;
+    for (var i = 0; i < TILE_COUNT; i++) {
+      var tile = grid.children[i];
+      var isLogo = logoIndices.indexOf(i) !== -1;
+      var isSelected = selected.indexOf(i) !== -1;
+      if (isSelected && isLogo) { tile.classList.add('correct'); matches++; }
+      else if (isSelected && !isLogo) { tile.classList.add('wrong'); }
+      else if (!isSelected && isLogo) { tile.classList.add('missed'); }
+    }
+    var messages = [
+      "You spotted 0 of 3 — still a winner! Everyone gets a discount.",
+      "You found 1 of 3! Nice eye.",
+      "You found 2 of 3 — sharp eyes!",
+      "🎯 All 3! Perfect score — jackpot prize unlocked."
+    ];
+    gridResultText.textContent = messages[matches];
+    gridResult.classList.add('visible');
     claimForm.classList.add('visible');
     claimForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
-  card.addEventListener('click', reveal);
-  card.addEventListener('keydown', function(e){
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); reveal(); }
-  });
 
   var form = document.getElementById('scratchClaimForm');
   var status = document.getElementById('claimStatus');
@@ -544,7 +595,7 @@
     fetch('https://app.goldenbeemalaj.com/api/discount-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name, contact: contact, source: 'scratch_card' })
+      body: JSON.stringify({ name: name, contact: contact, source: 'scratch_card', matches: matches })
     }).then(function(r){
       return r.json().catch(function(){ return { error: 'Unexpected response' }; });
     }).then(function(res){
@@ -553,8 +604,10 @@
           var el = form.children[i];
           if (el !== status) form.removeChild(el);
         }
+        var pct = typeof res.discount_bps === 'number' ? (res.discount_bps / 100) : null;
         status.className = 'claim-status success';
-        status.innerHTML = 'Thanks, ' + name + '! Here\'s your code — enter it when you submit your exchange request:' +
+        status.innerHTML = (pct !== null ? '🎉 You won <strong>' + pct + '% off</strong>! ' : '') +
+          'Thanks, ' + name + '! Here\'s your code — enter it when you submit your exchange request:' +
           '<div class="claim-code">' + res.code + '</div>';
       } else {
         btn.disabled = false;
