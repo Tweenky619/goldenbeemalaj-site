@@ -146,21 +146,24 @@
     border-radius: 10px;
     background: var(--dark);
     border: 2px solid var(--gold);
-    cursor: pointer;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  .logo-tile:hover { transform: translateY(-2px); }
-  .logo-tile img { width: 62%; height: 62%; object-fit: contain; opacity: 0.07; pointer-events: none; user-select: none; -webkit-user-drag: none; }
-  .logo-tile.selected { border-color: var(--gold-light); box-shadow: 0 0 0 3px rgba(212,175,55,0.35) inset; }
-  .logo-tile.correct { border-color: #4caf6a; }
-  .logo-tile.correct img, .logo-tile.missed img { opacity: 0.95; }
+  .tile-content { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .tile-content img { width: 62%; height: 62%; object-fit: contain; opacity: 0.95; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+  .tile-foil {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    touch-action: none;
+    transition: opacity 0.4s ease;
+  }
+  .logo-tile.revealed .tile-foil { opacity: 0; pointer-events: none; }
+  .logo-tile.correct { border-color: #4caf6a; box-shadow: 0 0 0 2px rgba(76,175,106,0.4) inset; }
   .logo-tile.missed { border-color: #4caf6a; border-style: dashed; }
-  .logo-tile.wrong { border-color: #c96a52; opacity: 0.55; }
-  .logo-grid.locked .logo-tile { cursor: default; }
+  .logo-grid.locked .tile-foil { cursor: default; }
   .grid-pick-count { margin-top: 0.7rem; font-family: Arial, Helvetica, sans-serif; font-size: 0.85rem; color: #cfc6b0; }
   .grid-result { max-width: 420px; margin: 1.2rem auto 0; text-align: center; display: none; }
   .grid-result.visible { display: block; }
@@ -297,10 +300,10 @@
 <section class="scratch" id="scratch-win">
   <h2 class="section-title">Try Your Luck</h2>
   <hr class="gold-rule">
-  <p class="section-sub">Find all 3 hidden Goldenbee logos among the 9 tiles — the more you spot, the more you save.</p>
+  <p class="section-sub">Scratch 3 of the 9 tiles — find the hidden Goldenbee logos to boost your prize.</p>
   <div class="logo-grid-wrap">
-    <div class="logo-grid" id="logoGrid" role="group" aria-label="Pick 3 tiles where you think the faint Goldenbee logo is hiding"></div>
-    <p class="grid-pick-count" id="gridPickCount">Pick 3 tiles &mdash; 0 of 3 selected</p>
+    <div class="logo-grid" id="logoGrid" role="group" aria-label="Scratch 3 tiles to reveal what's hiding underneath"></div>
+    <p class="grid-pick-count" id="gridPickCount">Scratch 3 tiles &mdash; 0 of 3 revealed</p>
     <div class="grid-result" id="gridResult">
       <div class="win-icon">🎉</div>
       <div class="win-text" id="gridResultText"></div>
@@ -510,62 +513,169 @@
     if (logoIndices.indexOf(idx) === -1) logoIndices.push(idx);
   }
 
-  var selected = [];
+  var revealed = [];
   var locked = false;
   var matches = 0;
+  var dpr = window.devicePixelRatio || 1;
+  var tileApis = [];
 
   for (var i = 0; i < TILE_COUNT; i++) {
     (function (index) {
+      var isLogo = logoIndices.indexOf(index) !== -1;
       var tile = document.createElement('div');
       tile.className = 'logo-tile';
-      tile.setAttribute('role', 'button');
-      tile.setAttribute('tabindex', '0');
-      tile.setAttribute('aria-label', 'Tile ' + (index + 1));
-      if (logoIndices.indexOf(index) !== -1) {
+
+      var content = document.createElement('div');
+      content.className = 'tile-content';
+      if (isLogo) {
         var img = document.createElement('img');
         img.src = LOGO_SRC;
         img.alt = '';
         img.draggable = false;
-        tile.appendChild(img);
+        content.appendChild(img);
       }
-      function activate() {
-        if (locked) return;
-        var pos = selected.indexOf(index);
-        if (pos !== -1) {
-          selected.splice(pos, 1);
-          tile.classList.remove('selected');
-        } else {
-          if (selected.length >= 3) return;
-          selected.push(index);
-          tile.classList.add('selected');
-        }
-        pickCount.textContent = 'Pick 3 tiles — ' + selected.length + ' of 3 selected';
-        if (selected.length === 3) finish();
-      }
-      tile.addEventListener('click', activate);
-      tile.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
-      });
+      tile.appendChild(content);
+
+      var canvas = document.createElement('canvas');
+      canvas.className = 'tile-foil';
+      canvas.setAttribute('role', 'button');
+      canvas.setAttribute('tabindex', '0');
+      canvas.setAttribute('aria-label', 'Scratch tile ' + (index + 1));
+      tile.appendChild(canvas);
       grid.appendChild(tile);
+
+      var ctx = canvas.getContext('2d');
+      var scratching = false;
+      var lastPoint = null;
+      var thisRevealed = false;
+
+      function sizeCanvas() {
+        // Measure the tile (stable, aspect-ratio-driven) rather than the
+        // canvas itself — reading the canvas's own rect too early can
+        // return its intrinsic 300x150 default before grid layout settles,
+        // desyncing the drawing bitmap from where clicks actually land.
+        var rect = tile.getBoundingClientRect();
+        if (rect.width < 2 || rect.height < 2) return;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawFoil(rect.width, rect.height);
+      }
+      function drawFoil(w, h) {
+        var grad = ctx.createLinearGradient(0, 0, w, h);
+        grad.addColorStop(0, '#b8860f');
+        grad.addColorStop(0.5, '#d4af37');
+        grad.addColorStop(1, '#b8860f');
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      }
+      function getPoint(e) {
+        var rect = canvas.getBoundingClientRect();
+        var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+      }
+      function erase(x, y) {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(x, y, 16, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      function eraseLine(from, to) {
+        var dist = Math.hypot(to.x - from.x, to.y - from.y);
+        var steps = Math.max(1, Math.ceil(dist / 6));
+        for (var s = 0; s <= steps; s++) {
+          erase(from.x + (to.x - from.x) * (s / steps), from.y + (to.y - from.y) * (s / steps));
+        }
+      }
+      var checkCounter = 0;
+      function checkProgress() {
+        if (thisRevealed) return;
+        checkCounter++;
+        if (checkCounter % 3 !== 0) return;
+        var sampleN = 12;
+        var data;
+        try { data = ctx.getImageData(0, 0, canvas.width, canvas.height); } catch (err) { return; }
+        var total = 0, cleared = 0;
+        var stepX = Math.floor(canvas.width / sampleN) || 1;
+        var stepY = Math.floor(canvas.height / sampleN) || 1;
+        for (var y = 0; y < canvas.height; y += stepY) {
+          for (var x = 0; x < canvas.width; x += stepX) {
+            var idx = (y * canvas.width + x) * 4 + 3;
+            total++;
+            if (data.data[idx] < 80) cleared++;
+          }
+        }
+        if (total > 0 && cleared / total > 0.5) revealTile();
+      }
+      function revealTile() {
+        if (thisRevealed || locked) return;
+        if (revealed.length >= 3) return;
+        thisRevealed = true;
+        tile.classList.add('revealed');
+        revealed.push(index);
+        pickCount.textContent = 'Scratch 3 tiles — ' + revealed.length + ' of 3 revealed';
+        if (revealed.length === 3) finish();
+      }
+      function startScratch(e) {
+        if (locked || thisRevealed || revealed.length >= 3) return;
+        scratching = true;
+        lastPoint = getPoint(e);
+        erase(lastPoint.x, lastPoint.y);
+        checkProgress();
+      }
+      function moveScratch(e) {
+        if (!scratching) return;
+        e.preventDefault();
+        var p = getPoint(e);
+        eraseLine(lastPoint, p);
+        lastPoint = p;
+        checkProgress();
+      }
+      function endScratch() { scratching = false; lastPoint = null; }
+
+      canvas.addEventListener('mousedown', startScratch);
+      canvas.addEventListener('mousemove', moveScratch);
+      window.addEventListener('mouseup', endScratch);
+      canvas.addEventListener('touchstart', startScratch, { passive: true });
+      canvas.addEventListener('touchmove', moveScratch, { passive: false });
+      canvas.addEventListener('touchend', endScratch);
+      canvas.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); revealTile(); }
+      });
+      window.addEventListener('resize', sizeCanvas);
+
+      tileApis.push({
+        tile: tile,
+        isLogo: isLogo,
+        sizeCanvas: sizeCanvas,
+        forceReveal: function () { tile.classList.add('revealed'); }
+      });
     })(i);
   }
+
+  function sizeAllCanvases() {
+    tileApis.forEach(function (api) { api.sizeCanvas(); });
+  }
+  requestAnimationFrame(function () { requestAnimationFrame(sizeAllCanvases); });
+  window.addEventListener('load', sizeAllCanvases);
+  setTimeout(sizeAllCanvases, 300); // safety net for slow font/layout settling
 
   function finish() {
     locked = true;
     grid.classList.add('locked');
     matches = 0;
-    for (var i = 0; i < TILE_COUNT; i++) {
-      var tile = grid.children[i];
-      var isLogo = logoIndices.indexOf(i) !== -1;
-      var isSelected = selected.indexOf(i) !== -1;
-      if (isSelected && isLogo) { tile.classList.add('correct'); matches++; }
-      else if (isSelected && !isLogo) { tile.classList.add('wrong'); }
-      else if (!isSelected && isLogo) { tile.classList.add('missed'); }
-    }
+    tileApis.forEach(function (api, i) {
+      var wasRevealed = revealed.indexOf(i) !== -1;
+      if (wasRevealed && api.isLogo) { api.tile.classList.add('correct'); matches++; }
+      else if (!wasRevealed && api.isLogo) { api.forceReveal(); api.tile.classList.add('missed'); }
+      else if (!wasRevealed) { api.forceReveal(); }
+    });
     var messages = [
-      "You spotted 0 of 3 — still a winner! Everyone gets a discount.",
-      "You found 1 of 3! Nice eye.",
-      "You found 2 of 3 — sharp eyes!",
+      "You found 0 of 3 — still a winner! Everyone gets a discount.",
+      "You found 1 of 3! Nice.",
+      "You found 2 of 3 — sharp scratching!",
       "🎯 All 3! Perfect score — jackpot prize unlocked."
     ];
     gridResultText.textContent = messages[matches];
