@@ -33,12 +33,9 @@ export default {
       return json({ ok: false, error: "Method not allowed" }, 405);
     }
 
-    // Serve /admin without the .html extension
-    if (url.pathname === "/admin" || url.pathname === "/admin/") {
-      const assetReq = new Request(new URL("/admin.html", url).toString(), request);
-      return env.ASSETS.fetch(assetReq);
-    }
-
+    // /admin already resolves to admin.html via Pages' clean-URL asset
+    // handling — rewriting to /admin.html here would just bounce back
+    // a 308 (that path redirects to the clean URL), looping forever.
     return env.ASSETS.fetch(request);
   },
 };
