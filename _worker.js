@@ -19,6 +19,14 @@ export default {
       return handleLead(request, env, ctx);
     }
 
+    // Magic Data: auto-saves whatever's been typed into the lead form
+    // before a visitor abandons it, so a half-finished form isn't a
+    // total loss. Debounced client-side; upserted here by session id.
+    if (url.pathname === "/api/lead/partial") {
+      if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
+      return handlePartialLead(request, env, ctx);
+    }
+
     // Admin API — all routes require Bearer token matching ADMIN_PASSWORD
     if (url.pathname === "/api/admin/leads") {
       if (!(await adminAuthed(request, env))) return unauthorized();
@@ -56,17 +64,31 @@ async function handleLead(request, env, ctx) {
   const interest = clean(data.interest, 120);
   const bestTime = clean(data.best_time, 60);
   const sourcePage = clean(data.source_page, 250);
+  const sessionId = clean(data.client_session_id, 100);
 
   if (!name || !contact) {
     return json({ ok: false, error: "Please include your name and a way to reach you." }, 400);
   }
 
   try {
-    await env.DB.prepare(
-      "INSERT INTO leads (name, contact, interest, best_time, source_page) VALUES (?1, ?2, ?3, ?4, ?5)"
-    )
-      .bind(name, contact, interest || null, bestTime || null, sourcePage || null)
-      .run();
+    // If this session already has a Magic-Data partial (abandoned) row,
+    // promote it in place instead of inserting a duplicate lead.
+    let promoted = false;
+    if (sessionId) {
+      const upd = await env.DB.prepare(
+        "UPDATE leads SET name = ?1, contact = ?2, interest = ?3, best_time = ?4, source_page = ?5, status = 'new' WHERE client_session_id = ?6"
+      )
+        .bind(name, contact, interest || null, bestTime || null, sourcePage || null, sessionId)
+        .run();
+      promoted = upd.meta.changes > 0;
+    }
+    if (!promoted) {
+      await env.DB.prepare(
+        "INSERT INTO leads (name, contact, interest, best_time, source_page, client_session_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
+      )
+        .bind(name, contact, interest || null, bestTime || null, sourcePage || null, sessionId || null)
+        .run();
+    }
   } catch (err) {
     console.log("D1 insert failed:", err.message);
     return json({ ok: false, error: "Something went wrong saving your info. Please call or email us instead." }, 500);
@@ -74,6 +96,59 @@ async function handleLead(request, env, ctx) {
 
   // Email is best-effort: the lead is already saved, so never fail the response over it.
   ctx.waitUntil(notify(env, { name, contact, interest, bestTime, sourcePage }));
+
+  return json({ ok: true });
+}
+
+async function handlePartialLead(request, env, ctx) {
+  let data;
+  try {
+    data = await request.json();
+  } catch {
+    return json({ ok: false, error: "Invalid request." }, 400);
+  }
+
+  if (data.company) return json({ ok: true }); // honeypot
+
+  const sessionId = clean(data.client_session_id, 100);
+  if (!sessionId) return json({ ok: false, error: "Missing session id." }, 400);
+
+  const name = clean(data.name, 120);
+  const contact = clean(data.contact, 200);
+  const interest = clean(data.interest, 120);
+  const bestTime = clean(data.best_time, 60);
+  const sourcePage = clean(data.source_page, 250);
+
+  // Not worth saving until there's at least a way to reach them back.
+  if (!contact) return json({ ok: true, skipped: true });
+
+  try {
+    const upd = await env.DB.prepare(
+      "UPDATE leads SET name = ?1, contact = ?2, interest = ?3, best_time = ?4, source_page = ?5 WHERE client_session_id = ?6 AND status = 'abandoned'"
+    )
+      .bind(name, contact, interest || null, bestTime || null, sourcePage || null, sessionId)
+      .run();
+
+    if (upd.meta.changes === 0) {
+      // No abandoned row updated — either this session was already
+      // promoted to a real lead (full submit), or this is the first
+      // time we've seen it abandon the form.
+      const existing = await env.DB.prepare("SELECT 1 FROM leads WHERE client_session_id = ?1 LIMIT 1")
+        .bind(sessionId)
+        .first();
+      if (!existing) {
+        await env.DB.prepare(
+          "INSERT INTO leads (name, contact, interest, best_time, source_page, client_session_id, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'abandoned')"
+        )
+          .bind(name, contact, interest || null, bestTime || null, sourcePage || null, sessionId)
+          .run();
+        ctx.waitUntil(notify(env, { name, contact, interest, bestTime, sourcePage, abandoned: true }));
+      }
+    }
+  } catch (err) {
+    console.log("D1 partial-lead upsert failed:", err.message);
+    return json({ ok: false, error: "Could not save." }, 500);
+  }
 
   return json({ ok: true });
 }
@@ -96,10 +171,13 @@ async function notify(env, lead) {
     " – " +
     fmtLA(win.endMs, { hour: "numeric", minute: "2-digit" }) +
     " Pacific";
+  const who = lead.name || lead.contact;
   const text = [
-    "New lead from goldenbeemalaj.com",
+    lead.abandoned
+      ? "Someone started filling out the lead form on goldenbeemalaj.com but didn't finish — here's what they entered before dropping off:"
+      : "New lead from goldenbeemalaj.com",
     "",
-    "Name:     " + lead.name,
+    "Name:     " + (lead.name || "(not entered yet)"),
     "Contact:  " + lead.contact,
     "Interest: " + (lead.interest || "(not specified)"),
     "Call at:  " + (lead.bestTime || "(not specified)"),
@@ -124,7 +202,7 @@ async function notify(env, lead) {
         body: JSON.stringify({
           to: NOTIFY_TO,
           from: NOTIFY_FROM,
-          subject: "New lead: " + lead.name + (lead.interest ? " — " + lead.interest : ""),
+          subject: (lead.abandoned ? "Abandoned form: " : "New lead: ") + who + (lead.interest ? " — " + lead.interest : ""),
           text: text,
           attachments: [
             {
@@ -237,7 +315,7 @@ export function buildIcs(lead, startMs, endMs) {
     "DTSTAMP:" + icsDate(Date.now()),
     "DTSTART:" + icsDate(startMs),
     "DTEND:" + icsDate(endMs),
-    "SUMMARY:" + icsEscape("Call lead: " + lead.name + " (" + (lead.interest || "General inquiry") + ")"),
+    "SUMMARY:" + icsEscape("Call lead: " + (lead.name || lead.contact) + " (" + (lead.interest || "General inquiry") + ")"),
     "DESCRIPTION:" + icsEscape(desc),
     "ORGANIZER;CN=Goldenbee MALAJ Leads:mailto:" + NOTIFY_FROM,
     "ATTENDEE;CN=Goldenbee MALAJ;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:" + NOTIFY_TO,
@@ -317,7 +395,7 @@ async function adminUpdateLead(request, env, id) {
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
 
-  const valid = ["new", "contacted", "confirmed", "completed", "no-reply"];
+  const valid = ["new", "contacted", "confirmed", "completed", "no-reply", "abandoned"];
   if (!valid.includes(data.status)) return json({ ok: false, error: "Invalid status" }, 400);
 
   try {

@@ -447,6 +447,49 @@
   var status = document.getElementById('leadStatus');
   var btn = document.getElementById('leadSubmit');
 
+  // Magic Data: auto-save whatever's been typed before a visitor
+  // abandons the form, so a half-finished lead isn't a total loss.
+  var SESSION_KEY = 'gbm_lead_session';
+  var sessionId = sessionStorage.getItem(SESSION_KEY);
+  if (!sessionId) {
+    sessionId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('id_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+    sessionStorage.setItem(SESSION_KEY, sessionId);
+  }
+  var submitted = false;
+  var partialTimer = null;
+  var lastPartialSent = '';
+
+  function sendPartial(){
+    if (submitted) return;
+    var contact = form.contact.value.trim();
+    if (!contact) return;
+    var payload = JSON.stringify({
+      name: form.name.value.trim(),
+      contact: contact,
+      interest: form.interest.value,
+      best_time: form.best_time.value,
+      company: form.company.value,
+      source_page: location.pathname + location.hash,
+      client_session_id: sessionId
+    });
+    if (payload === lastPartialSent) return;
+    lastPartialSent = payload;
+    fetch('/api/lead/partial', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload
+    }).catch(function(){});
+  }
+
+  ['name', 'contact', 'interest', 'best_time'].forEach(function(fieldName){
+    var el = form[fieldName];
+    if (!el) return;
+    el.addEventListener('blur', function(){
+      clearTimeout(partialTimer);
+      partialTimer = setTimeout(sendPartial, 400);
+    });
+  });
+
   form.addEventListener('submit', function(e){
     e.preventDefault();
     var name = form.name.value.trim();
@@ -470,12 +513,14 @@
         interest: form.interest.value,
         best_time: form.best_time.value,
         company: form.company.value,
-        source_page: location.pathname + location.hash
+        source_page: location.pathname + location.hash,
+        client_session_id: sessionId
       })
     }).then(function(r){
       return r.json().catch(function(){ return { ok:false }; });
     }).then(function(res){
       if (res.ok) {
+        submitted = true;
         for (var i = form.children.length - 1; i >= 0; i--) {
           var el = form.children[i];
           if (el !== status) form.removeChild(el);

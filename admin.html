@@ -73,6 +73,7 @@
   .stat.s-contacted .num { color: var(--blue); }
   .stat.s-confirmed .num { color: var(--green); }
   .stat.s-completed .num { color: var(--green-dark); }
+  .stat.s-abandoned .num { color: var(--red-soft); }
 
   /* ── Controls ───────────────────────────────────── */
   .controls { display: flex; gap: 0.6rem; padding: 0.8rem 1.5rem; flex-wrap: wrap; align-items: center; }
@@ -121,6 +122,7 @@
   .s-confirmed { color: var(--green);      border-color: var(--green); }
   .s-completed { color: var(--green-dark); border-color: var(--green-dark); }
   .s-no-reply  { color: var(--gray);       border-color: var(--gray); }
+  .s-abandoned { color: var(--red-soft);   border-color: var(--red-soft); }
 
   /* State messages */
   .msg-center { text-align: center; padding: 4rem 1rem; color: var(--muted); font-size: 0.95rem; }
@@ -164,6 +166,7 @@
     <div class="stat s-contacted"><div class="num" id="sCon">–</div><div class="lbl">Contacted</div></div>
     <div class="stat s-confirmed"><div class="num" id="sCfm">–</div><div class="lbl">Confirmed</div></div>
     <div class="stat s-completed"><div class="num" id="sCmp">–</div><div class="lbl">Completed</div></div>
+    <div class="stat s-abandoned"><div class="num" id="sAbd">–</div><div class="lbl">Abandoned</div></div>
   </div>
 
   <div class="controls">
@@ -175,6 +178,7 @@
       <option value="confirmed">Confirmed</option>
       <option value="completed">Completed</option>
       <option value="no-reply">No Reply</option>
+      <option value="abandoned">Abandoned</option>
     </select>
     <label for="fSource">Source:</label>
     <select id="fSource">
@@ -211,8 +215,8 @@
   'use strict';
 
   var TOKEN_KEY = 'gbm_admin_tok';
-  var STATUSES = ['new', 'contacted', 'confirmed', 'completed', 'no-reply'];
-  var STATUS_LABELS = { 'new': 'New', 'contacted': 'Contacted', 'confirmed': 'Confirmed', 'completed': 'Completed', 'no-reply': 'No Reply' };
+  var STATUSES = ['new', 'contacted', 'confirmed', 'completed', 'no-reply', 'abandoned'];
+  var STATUS_LABELS = { 'new': 'New', 'contacted': 'Contacted', 'confirmed': 'Confirmed', 'completed': 'Completed', 'no-reply': 'No Reply', 'abandoned': 'Abandoned' };
 
   var token = sessionStorage.getItem(TOKEN_KEY);
   var allLeads = [];
@@ -301,13 +305,14 @@
 
   // ── Stats ─────────────────────────────────────────
   function renderStats() {
-    var counts = { total: allLeads.length, 'new': 0, contacted: 0, confirmed: 0, completed: 0 };
+    var counts = { total: allLeads.length, 'new': 0, contacted: 0, confirmed: 0, completed: 0, abandoned: 0 };
     allLeads.forEach(function (l) { if (counts[l.status] !== undefined) counts[l.status]++; });
     document.getElementById('sTot').textContent = counts.total;
     document.getElementById('sNew').textContent = counts['new'];
     document.getElementById('sCon').textContent = counts.contacted;
     document.getElementById('sCfm').textContent = counts.confirmed;
     document.getElementById('sCmp').textContent = counts.completed;
+    document.getElementById('sAbd').textContent = counts.abandoned;
   }
 
   // ── Filter + render ───────────────────────────────
