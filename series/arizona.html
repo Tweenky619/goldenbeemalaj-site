@@ -15,6 +15,30 @@
 <meta name="description" content="Arizona series Goldbacks (est. 2025) — real 24K gold currency, available now at Goldenbee MALAJ Jewelry, San Diego's Official Authorized Goldback Distributor. ½GB and 1GB denominations in stock.">
 <link rel="canonical" href="https://goldenbeemalaj.com/series/arizona">
 <link rel="icon" type="image/jpeg" href="/images/brand/goldenbee-malaj-logo.jpg">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is a Arizona Goldback?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "An Arizona Goldback is a physical note of real 24-karat gold, precisely vacuum-deposited onto a durable polymer substrate and printed with original Arizona-themed artwork honoring the Buffalo Soldiers (Valor), Mission San Xavier del Bac (Faith), and the Navajo Code Talkers (Liberty), set against Arizona's desert landscapes. It's part of the Goldback currency system, designed to be spent, saved, or collected, and each note carries a unique serial number so its authenticity can be independently verified."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is a Arizona Goldback worth?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Like all Goldbacks, the Arizona series is priced by its gold content plus a small premium, and the rate moves with the spot price of gold. Goldenbee MALAJ sells at a flat rate per Goldback - request a live quote to see today's exact rate before you buy or sell."
+      }
+    }
+  ]
+}
+</script>
 <style>
   :root {
     --gold: #DA9900;
@@ -52,6 +76,41 @@
   .trust-box { background: #fff; border: 1px solid #e8dfc8; border-radius: 8px; padding: 1.4rem 1.6rem; margin: 1.6rem 0; }
   .stock-line { font-weight: bold; color: var(--dark); background: #f1ead7; border-radius: 6px; padding: 0.9rem 1.2rem; margin: 1.6rem 0; }
   .cta-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 2rem 0; }
+  .faq { margin: 2.4rem 0; }
+  .faq h2 { font-size: 1.3rem; color: var(--dark); margin-bottom: 0.6rem; }
+  .faq h3 { font-size: 1.05rem; color: var(--dark); margin: 1.3rem 0 0.4rem; font-family: Arial, Helvetica, sans-serif; }
+  .denom-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-family: Arial, Helvetica, sans-serif; font-size: 0.95rem; }
+  .denom-table th, .denom-table td { text-align: left; padding: 0.55rem 0.8rem; border-bottom: 1px solid #e8dfc8; }
+  .denom-table th { color: var(--muted); font-weight: normal; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .denom-note { font-size: 0.9rem; color: var(--muted); margin-top: 0.6rem; }
+  .denom-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1.2rem; margin: 1.2rem 0; }
+  .denom-card { background: #fff; border: 1px solid #e8dfc8; border-radius: 8px; overflow: hidden; }
+  .denom-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; background: var(--cream); }
+  .denom-card .denom-body { padding: 0.7rem 0.8rem 0.9rem; }
+  .denom-card .denom-label { font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 0.95rem; color: var(--dark); }
+  .denom-card .denom-virtue { font-family: Arial, Helvetica, sans-serif; font-size: 0.78rem; color: var(--gold); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.4rem; }
+  .denom-card p { font-size: 0.86rem; margin-bottom: 0.5rem; line-height: 1.45; }
+  .denom-card .status-tag { display: inline-block; font-family: Arial, Helvetica, sans-serif; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.2rem 0.55rem; border-radius: 12px; }
+  .status-tag.in-stock { background: #e8f2e4; color: #3d6b2f; }
+  .status-tag.on-request { background: #f1ead7; color: var(--muted); }
+  .status-tag.presale { background: #fdf0d5; color: #a05a00; }
+  .denom-card img, .compare-images img { cursor: zoom-in; transition: opacity 0.15s ease; }
+  .denom-card img:hover, .compare-images img:hover { opacity: 0.85; }
+  .lightbox-overlay { display: none; position: fixed; inset: 0; background: rgba(10,8,5,0.88); z-index: 1000; align-items: center; justify-content: center; padding: 5vh 5vw; cursor: zoom-out; }
+  .lightbox-overlay.open { display: flex; }
+  .lightbox-overlay img { max-width: 100%; max-height: 90vh; border-radius: 6px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .lightbox-close { position: absolute; top: 20px; right: 28px; color: #fff; font-size: 2.2rem; font-family: Arial, Helvetica, sans-serif; line-height: 1; cursor: pointer; opacity: 0.8; }
+  .lightbox-close:hover { opacity: 1; }
+  .lightbox-overlay img { cursor: zoom-in; }
+  .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); color: #fff; font-size: 3rem; font-family: Arial, Helvetica, sans-serif; line-height: 1; cursor: pointer; opacity: 0.7; padding: 0.5rem 1rem; user-select: none; }
+  .lightbox-nav:hover { opacity: 1; }
+  .lightbox-prev { left: 8px; }
+  .lightbox-next { right: 8px; }
+  .denom-images { display: flex; gap: 2px; }
+  .denom-images .img-slot { flex: 1; min-width: 0; }
+  .denom-images img { width: 100%; aspect-ratio: 3/4; object-fit: cover; background: var(--cream); cursor: zoom-in; transition: opacity 0.15s ease; display: block; }
+  .denom-images img:hover { opacity: 0.85; }
+  .denom-images .img-tag { font-family: Arial, Helvetica, sans-serif; font-size: 0.6rem; text-align: center; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); padding: 0.15rem 0; background: #f1ead7; }
   .other-series { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e8dfc8; }
   .other-series h2 { font-size: 1.2rem; color: var(--dark); margin-bottom: 1rem; font-family: Arial, Helvetica, sans-serif; }
   .other-series-links { display: flex; flex-wrap: wrap; gap: 0.6rem; }
@@ -101,11 +160,170 @@
     <a class="btn btn-outline" href="tel:+16195048977">Call (619) 504-8977</a>
   </div>
 
+  <div class="faq">
+    <h2>What is a Arizona Goldback?</h2>
+    <p>An Arizona Goldback is a physical note of real 24-karat gold, precisely vacuum-deposited onto a durable polymer substrate and printed with original Arizona-themed artwork honoring the Buffalo Soldiers (Valor), Mission San Xavier del Bac (Faith), and the Navajo Code Talkers (Liberty), set against Arizona's desert landscapes. It's part of the Goldback currency system, designed to be spent, saved, or collected, and each note carries a unique serial number so its authenticity can be independently verified.</p>
+
+    <h3>Arizona Goldback denominations</h3>
+    <div class="denom-grid">
+      <div class="denom-card">
+        <div class="denom-images">
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/half.jpg" alt="Arizona 1/2 Goldback - Fides - Front">
+            <div class="img-tag">Front</div>
+          </div>
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/half-back.jpg" alt="Arizona 1/2 Goldback - Fides - Back">
+            <div class="img-tag">Back</div>
+          </div>
+        </div>
+        <div class="denom-body">
+          <div class="denom-label">&frac12; GB</div>
+          <div class="denom-virtue">Fides &middot; Faith</div>
+          <p>Set beneath Mission San Xavier del Bac, the "White Dove of the Desert," honoring the Spanish missionaries who shaped Arizona's earliest spiritual roots.</p>
+          <span class="status-tag in-stock">In stock</span>
+        </div>
+      </div>
+      <div class="denom-card">
+        <div class="denom-images">
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/one.jpg" alt="Arizona 1 Goldback - Temperentia - Front">
+            <div class="img-tag">Front</div>
+          </div>
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/one-back.jpg" alt="Arizona 1 Goldback - Temperentia - Back">
+            <div class="img-tag">Back</div>
+          </div>
+        </div>
+        <div class="denom-body">
+          <div class="denom-label">1 GB</div>
+          <div class="denom-virtue">Temperentia &middot; Temperance</div>
+          <p>Set in 1820s Tubac near Mission San Jose de Tumacacori, honoring the Mexican era that shaped southern Arizona through faith and community.</p>
+          <span class="status-tag in-stock">In stock</span>
+        </div>
+      </div>
+      <div class="denom-card">
+        <div class="denom-images">
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/two.jpg" alt="Arizona 2 Goldback - Exploratio - Front">
+            <div class="img-tag">Front</div>
+          </div>
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/two-back.jpg" alt="Arizona 2 Goldback - Exploratio - Back">
+            <div class="img-tag">Back</div>
+          </div>
+        </div>
+        <div class="denom-body">
+          <div class="denom-label">2 GB</div>
+          <div class="denom-virtue">Exploratio &middot; Exploration</div>
+          <p>A rower braves the Colorado River through the Grand Canyon, retracing the 1869 Powell Geographic Expedition's first documented passage by boat.</p>
+          <span class="status-tag on-request">Available on request</span>
+        </div>
+      </div>
+      <div class="denom-card">
+        <div class="denom-images">
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/five.jpg" alt="Arizona 5 Goldback - Lex et Ordo - Front">
+            <div class="img-tag">Front</div>
+          </div>
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/five-back.jpg" alt="Arizona 5 Goldback - Lex et Ordo - Back">
+            <div class="img-tag">Back</div>
+          </div>
+        </div>
+        <div class="denom-body">
+          <div class="denom-label">5 GB</div>
+          <div class="denom-virtue">Lex et Ordo &middot; Law and Order</div>
+          <p>Reimagines the 1881 gunfight at the O.K. Corral in Tombstone, a lawwoman wearing Virgil Earp's marshal badge amid the desert dust.</p>
+          <span class="status-tag on-request">Available on request</span>
+        </div>
+      </div>
+      <div class="denom-card">
+        <div class="denom-images">
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/ten.jpg" alt="Arizona 10 Goldback - Virtus - Front">
+            <div class="img-tag">Front</div>
+          </div>
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/ten-back.jpg" alt="Arizona 10 Goldback - Virtus - Back">
+            <div class="img-tag">Back</div>
+          </div>
+        </div>
+        <div class="denom-body">
+          <div class="denom-label">10 GB</div>
+          <div class="denom-virtue">Virtus &middot; Valor</div>
+          <p>Honors the Buffalo Soldiers of the 10th Cavalry at Fort Huachuca, formed after the Civil War from African American soldiers who served with distinction.</p>
+          <span class="status-tag on-request">Available on request</span>
+        </div>
+      </div>
+      <div class="denom-card">
+        <div class="denom-images">
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/twentyfive.jpg" alt="Arizona 25 Goldback - Tenacitas - Front">
+            <div class="img-tag">Front</div>
+          </div>
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/twentyfive-back.jpg" alt="Arizona 25 Goldback - Tenacitas - Back">
+            <div class="img-tag">Back</div>
+          </div>
+        </div>
+        <div class="denom-body">
+          <div class="denom-label">25 GB</div>
+          <div class="denom-virtue">Tenacitas &middot; Tenacity</div>
+          <p>Set at Weavers Needle in the Superstition Mountains, retelling the legend of the Lost Dutchman Mine and the enigmatic Peralta Stone.</p>
+          <span class="status-tag on-request">Available on request</span>
+        </div>
+      </div>
+      <div class="denom-card">
+        <div class="denom-images">
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/fifty.jpg" alt="Arizona 50 Goldback - Curiositas - Front">
+            <div class="img-tag">Front</div>
+          </div>
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/fifty-back.jpg" alt="Arizona 50 Goldback - Curiositas - Back">
+            <div class="img-tag">Back</div>
+          </div>
+        </div>
+        <div class="denom-body">
+          <div class="denom-label">50 GB</div>
+          <div class="denom-virtue">Curiositas &middot; Curiosity</div>
+          <p>Honors Clyde Tombaugh's 1930 discovery of Pluto at Lowell Observatory in Flagstaff, telescope in hand beneath a star-studded sky.</p>
+          <span class="status-tag on-request">Available on request</span>
+        </div>
+      </div>
+      <div class="denom-card">
+        <div class="denom-images">
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/onehundred.jpg" alt="Arizona 100 Goldback - Libertas - Front">
+            <div class="img-tag">Front</div>
+          </div>
+          <div class="img-slot">
+            <img src="/images/arizona/denominations/onehundred-back.jpg" alt="Arizona 100 Goldback - Libertas - Back">
+            <div class="img-tag">Back</div>
+          </div>
+        </div>
+        <div class="denom-body">
+          <div class="denom-label">100 GB</div>
+          <div class="denom-virtue">Libertas &middot; Liberty</div>
+          <p>Set at Window Rock, honoring the Navajo Code Talkers whose unbreakable WWII code, built from their language, was never once deciphered by the enemy.</p>
+          <span class="status-tag on-request">Available on request</span>
+        </div>
+      </div>
+    </div>
+    <p class="denom-note">Looking for a specific Arizona denomination not listed as in-stock? Call or request a quote below - we can special-order it.</p>
+
+    <h3>What is a Arizona Goldback worth?</h3>
+    <p>Like all Goldbacks, the Arizona series is priced by its gold content plus a small premium, and the rate moves with the spot price of gold. Goldenbee MALAJ sells at a flat rate per Goldback - <a href="https://app.goldenbeemalaj.com/#exchange">request a live quote</a> to see today's exact rate before you buy or sell.</p>
+  </div>
+
   <div class="other-series">
     <h2>Explore other series</h2>
     <div class="other-series-links">
+        <a href="/series/california">California</a>
         <a href="/series/idaho">Idaho</a>
         <a href="/series/utah">Utah</a>
+        <a href="/series/utah-refresh">Utah Refresh</a>
         <a href="/series/nevada">Nevada</a>
         <a href="/series/new-hampshire">New Hampshire</a>
         <a href="/series/wyoming">Wyoming</a>
@@ -121,5 +339,53 @@
   <p style="margin-top:0.9rem;max-width:720px;margin-left:auto;margin-right:auto;font-size:0.76rem;color:#7a7060;line-height:1.6;">Goldenbee MALAJ Jewelry LLC is an authorized retail distributor of Goldbacks, a privately issued, gold-backed instrument manufactured by Goldback, Inc. The purchase of Goldbacks is a retail transaction in a physical gold product and is not a currency exchange service. Goldenbee MALAJ is not a Money Services Business (MSB), does not exchange foreign currencies, and is not regulated as such. Goldbacks are a product of Goldback, Inc. (Lehi, UT). Nothing on this site constitutes investment, legal, or tax advice.</p>
 </footer>
 
+<div class="lightbox-overlay" id="lightbox">
+  <span class="lightbox-close">&times;</span>
+  <span class="lightbox-nav lightbox-prev">&#8249;</span>
+  <img id="lightbox-img" src="" alt="">
+  <span class="lightbox-nav lightbox-next">&#8250;</span>
+</div>
+<script>
+  (function () {
+    var overlay = document.getElementById('lightbox');
+    var overlayImg = document.getElementById('lightbox-img');
+    var prevBtn = overlay.querySelector('.lightbox-prev');
+    var nextBtn = overlay.querySelector('.lightbox-next');
+    var gallery = Array.prototype.slice.call(document.querySelectorAll('.denom-images img, .denom-card > img'));
+    var current = 0;
+
+    function show(i) {
+      current = (i + gallery.length) % gallery.length;
+      var img = gallery[current];
+      overlayImg.src = img.src;
+      overlayImg.alt = img.alt;
+    }
+
+    gallery.forEach(function (img, i) {
+      img.addEventListener('click', function () {
+        show(i);
+        overlay.classList.add('open');
+      });
+    });
+
+    function next(e) { if (e) e.stopPropagation(); show(current + 1); }
+    function prev(e) { if (e) e.stopPropagation(); show(current - 1); }
+
+    overlayImg.addEventListener('click', function (e) { e.stopPropagation(); next(); });
+    nextBtn.addEventListener('click', next);
+    prevBtn.addEventListener('click', prev);
+
+    overlay.addEventListener('click', function () {
+      overlay.classList.remove('open');
+      overlayImg.src = '';
+    });
+    document.addEventListener('keydown', function (e) {
+      if (!overlay.classList.contains('open')) return;
+      if (e.key === 'Escape') { overlay.classList.remove('open'); overlayImg.src = ''; }
+      if (e.key === 'ArrowRight') next();
+      if (e.key === 'ArrowLeft') prev();
+    });
+  })();
+</script>
 </body>
 </html>
