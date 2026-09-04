@@ -133,6 +133,38 @@
   .saving { opacity: 0.5; pointer-events: none; }
 
   [hidden] { display: none !important; }
+
+  /* ── Tabs ───────────────────────────────────────── */
+  .tabs { display: flex; gap: 0.4rem; padding: 0 1.5rem; border-bottom: 1px solid var(--border); background: var(--dark-2); }
+  .tab-btn { background: transparent; border: none; color: var(--muted); padding: 0.8rem 0.9rem; font-size: 0.9rem; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab-btn:hover { color: var(--cream); }
+  .tab-btn.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+
+  /* ── Pricing panel ──────────────────────────────── */
+  .pricing-card { max-width: 420px; margin: 2rem 1.5rem; background: var(--dark-2); border: 1px solid var(--border); border-radius: 8px; padding: 1.6rem; }
+  .pricing-current { font-size: 2rem; font-weight: bold; color: var(--gold-light); margin-bottom: 0.2rem; }
+  .pricing-updated { font-size: 0.8rem; color: var(--muted); margin-bottom: 1.4rem; }
+  .pricing-form { display: flex; gap: 0.6rem; align-items: center; }
+  .pricing-form input {
+    flex: 1; padding: 0.6rem 0.8rem; background: var(--dark); border: 1px solid var(--border-2);
+    border-radius: 6px; color: var(--cream); font-size: 1rem;
+  }
+  .pricing-form input:focus { outline: 2px solid var(--gold); }
+  .pricing-form button {
+    padding: 0.6rem 1.1rem; background: var(--gold); color: var(--dark); border: none;
+    border-radius: 6px; font-weight: bold; cursor: pointer;
+  }
+  .pricing-form button:hover { background: var(--gold-light); }
+  .pricing-form button:disabled { opacity: 0.6; cursor: default; }
+  .pricing-msg { font-size: 0.85rem; margin-top: 0.8rem; min-height: 1.2em; }
+  .pricing-msg.ok { color: var(--green); }
+  .pricing-msg.err { color: var(--red-soft); }
+
+  /* ── Orders status select ───────────────────────── */
+  .s-paid      { color: var(--gold);       border-color: var(--gold); }
+  .s-shipped   { color: var(--blue);       border-color: var(--blue); }
+  .s-delivered { color: var(--green-dark); border-color: var(--green-dark); }
+  .s-refunded  { color: var(--red-soft);   border-color: var(--red-soft); }
 </style>
 </head>
 <body>
@@ -154,13 +186,20 @@
 <!-- ─── DASHBOARD ─── -->
 <div id="dashboard" hidden>
   <header>
-    <span class="header-title">🐝 Goldenbee MALAJ &nbsp;·&nbsp; Leads</span>
+    <span class="header-title">🐝 Goldenbee MALAJ</span>
     <div class="header-actions">
       <button class="btn-sm" id="refreshBtn">↻ Refresh</button>
       <button class="btn-sm btn-logout" id="logoutBtn">Log out</button>
     </div>
   </header>
 
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="leads">Leads</button>
+    <button class="tab-btn" data-tab="pricing">Pricing</button>
+    <button class="tab-btn" data-tab="orders">Orders</button>
+  </div>
+
+  <div id="panelLeads">
   <div class="stats">
     <div class="stat s-total"><div class="num" id="sTot">–</div><div class="lbl">Total</div></div>
     <div class="stat s-new"><div class="num" id="sNew">–</div><div class="lbl">New</div></div>
@@ -208,6 +247,42 @@
       </thead>
       <tbody id="leadsBody"></tbody>
     </table>
+  </div>
+  </div>
+
+  <div id="panelPricing" hidden>
+    <div class="pricing-card">
+      <div class="pricing-current" id="pricingCurrent">&mdash;</div>
+      <div class="pricing-updated" id="pricingUpdated"></div>
+      <form class="pricing-form" id="pricingForm">
+        <input type="number" id="pricingInput" placeholder="e.g. 10.00" step="0.01" min="0.01" required>
+        <button type="submit" id="pricingSaveBtn">Save</button>
+      </form>
+      <div class="pricing-msg" id="pricingMsg"></div>
+    </div>
+  </div>
+
+  <div id="panelOrders" hidden>
+    <div class="table-wrap">
+      <div id="ordersLoading" class="msg-center">Loading…</div>
+      <div id="ordersEmpty" class="msg-center" hidden>No orders yet.</div>
+      <div id="ordersErr" class="msg-center msg-err" hidden></div>
+      <table id="ordersTable" hidden>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Series / Denom</th>
+            <th>Qty</th>
+            <th>Amount</th>
+            <th>Customer</th>
+            <th>Ship To</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="ordersBody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -268,14 +343,37 @@
     document.getElementById('loginScreen').style.display = '';
   });
 
-  document.getElementById('refreshBtn').addEventListener('click', loadLeads);
+  document.getElementById('refreshBtn').addEventListener('click', function () {
+    if (activeTab === 'leads') loadLeads();
+    else if (activeTab === 'pricing') loadPricing();
+    else if (activeTab === 'orders') loadOrders();
+  });
   document.getElementById('fStatus').addEventListener('change', renderVisible);
   document.getElementById('fSource').addEventListener('change', renderVisible);
+
+  // ── Tabs ──────────────────────────────────────────
+  var activeTab = 'leads';
+  var PANELS = { leads: 'panelLeads', pricing: 'panelPricing', orders: 'panelOrders' };
+  var loadedTabs = { leads: false, pricing: false, orders: false };
+
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      activeTab = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
+      Object.keys(PANELS).forEach(function (t) { document.getElementById(PANELS[t]).hidden = t !== activeTab; });
+      if (!loadedTabs[activeTab]) {
+        loadedTabs[activeTab] = true;
+        if (activeTab === 'pricing') loadPricing();
+        if (activeTab === 'orders') loadOrders();
+      }
+    });
+  });
 
   // ── Enter dashboard ───────────────────────────────
   function enterDashboard() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('dashboard').hidden = false;
+    loadedTabs.leads = true;
     loadLeads();
   }
 
@@ -430,6 +528,123 @@
 
   function show(id) { document.getElementById(id).hidden = false; }
   function hide(id) { document.getElementById(id).hidden = true; }
+
+  // ── Pricing ───────────────────────────────────────
+  document.getElementById('pricingForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var input = document.getElementById('pricingInput');
+    var btn = document.getElementById('pricingSaveBtn');
+    var msg = document.getElementById('pricingMsg');
+    var val = parseFloat(input.value);
+    if (!(val > 0)) return;
+
+    btn.disabled = true;
+    msg.textContent = '';
+    msg.className = 'pricing-msg';
+
+    apiFetch('/api/admin/pricing', 'POST', { price_per_goldback: val }, token)
+      .then(function () {
+        msg.textContent = 'Saved.';
+        msg.className = 'pricing-msg ok';
+        input.value = '';
+        loadPricing();
+      })
+      .catch(function () {
+        msg.textContent = 'Could not save — try again.';
+        msg.className = 'pricing-msg err';
+      })
+      .then(function () { btn.disabled = false; });
+  });
+
+  function loadPricing() {
+    document.getElementById('pricingMsg').textContent = '';
+    apiFetch('/api/admin/pricing', 'GET', null, token)
+      .then(function (res) {
+        var p = res.pricing;
+        if (p) {
+          document.getElementById('pricingCurrent').textContent = '$' + (p.price_per_goldback_cents / 100).toFixed(2) + ' / Goldback';
+          document.getElementById('pricingUpdated').textContent = 'Updated ' + fmtDate(p.updated_at).date + ' at ' + fmtDate(p.updated_at).time;
+        } else {
+          document.getElementById('pricingCurrent').textContent = 'Not set';
+          document.getElementById('pricingUpdated').textContent = 'Set a price to enable online checkout.';
+        }
+      })
+      .catch(function () {
+        document.getElementById('pricingCurrent').textContent = 'Error loading price';
+      });
+  }
+
+  // ── Orders ────────────────────────────────────────
+  var ORDER_STATUSES = ['paid', 'shipped', 'delivered', 'refunded'];
+  var ORDER_STATUS_LABELS = { paid: 'Paid', shipped: 'Shipped', delivered: 'Delivered', refunded: 'Refunded' };
+  var allOrders = [];
+
+  function loadOrders() {
+    show('ordersLoading');
+    hide('ordersTable');
+    hide('ordersEmpty');
+    hide('ordersErr');
+
+    apiFetch('/api/admin/orders?limit=500', 'GET', null, token)
+      .then(function (res) {
+        allOrders = res.orders || [];
+        hide('ordersLoading');
+        if (allOrders.length === 0) { show('ordersEmpty'); return; }
+        var tbody = document.getElementById('ordersBody');
+        tbody.innerHTML = allOrders.map(orderRowHtml).join('');
+        show('ordersTable');
+        tbody.querySelectorAll('.status-sel').forEach(function (sel) {
+          sel.addEventListener('change', function () {
+            updateOrderStatus(parseInt(sel.dataset.id, 10), sel.value, sel);
+          });
+        });
+      })
+      .catch(function () {
+        hide('ordersLoading');
+        document.getElementById('ordersErr').textContent = 'Failed to load orders. Try refreshing.';
+        show('ordersErr');
+      });
+  }
+
+  function orderRowHtml(o) {
+    var d = fmtDate(o.created_at);
+    var amount = '$' + (o.amount_cents / 100).toFixed(2);
+    var shipTo = '–';
+    try {
+      var addr = JSON.parse(o.shipping_address || '{}');
+      var a = addr.address || addr;
+      if (a) shipTo = [a.city, a.state, a.postal_code].filter(Boolean).join(', ') || '–';
+    } catch (e) {}
+
+    var opts = ORDER_STATUSES.map(function (s) {
+      return '<option value="' + s + '"' + (o.status === s ? ' selected' : '') + '>' + ORDER_STATUS_LABELS[s] + '</option>';
+    }).join('');
+
+    return '<tr>' +
+      '<td class="c-id">' + Number(o.id) + '</td>' +
+      '<td class="c-date"><div class="c-date-main">' + d.date + '</div><div class="c-date-time">' + d.time + '</div></td>' +
+      '<td class="c-name">' + esc(o.series) + ' &middot; ' + esc(o.denomination) + '</td>' +
+      '<td>' + Number(o.quantity) + '</td>' +
+      '<td class="c-name">' + amount + '</td>' +
+      '<td class="c-contact">' + esc(o.customer_name || '–') + '<br>' + esc(o.customer_email || '') + '</td>' +
+      '<td class="c-interest">' + esc(shipTo) + '</td>' +
+      '<td><select class="status-sel s-' + esc(o.status) + '" data-id="' + Number(o.id) + '">' + opts + '</select></td>' +
+      '</tr>';
+  }
+
+  function updateOrderStatus(id, newStatus, sel) {
+    sel.classList.add('saving');
+    apiFetch('/api/admin/orders/' + id, 'PATCH', { status: newStatus }, token)
+      .then(function () {
+        sel.className = 'status-sel s-' + newStatus;
+        var order = allOrders.find(function (o) { return o.id === id; });
+        if (order) order.status = newStatus;
+      })
+      .catch(function () {
+        sel.classList.remove('saving');
+        alert('Could not update status — try refreshing.');
+      });
+  }
 })();
 </script>
 </body>

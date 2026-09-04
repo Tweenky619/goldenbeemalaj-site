@@ -2,9 +2,12 @@
 // Handles POST /api/lead (write to D1 + email notification); serves static assets for everything else.
 //
 // Required Pages project settings (Settings > Bindings / Variables):
-//   DB              - D1 database binding -> goldenbeemalaj-leads
-//   CF_ACCOUNT_ID   - plain-text variable, Cloudflare account ID
-//   EMAIL_API_TOKEN - secret, API token with Email Sending permission
+//   DB                    - D1 database binding -> goldenbeemalaj-leads
+//   CF_ACCOUNT_ID         - plain-text variable, Cloudflare account ID
+//   EMAIL_API_TOKEN       - secret, API token with Email Sending permission
+//   ADMIN_PASSWORD        - secret, admin dashboard password
+//   STRIPE_SECRET_KEY     - secret, Stripe secret API key (checkout)
+//   STRIPE_WEBHOOK_SECRET - secret, signing secret for the /api/webhook endpoint
 
 const NOTIFY_TO = "goldenbeemalajjewelry@gmail.com"; // verified Email Routing destination
 const NOTIFY_FROM = "leads@goldenbeemalaj.com";
@@ -13,10 +16,28 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    // Live gold spot price + 1yr daily history, cached at the edge
+    if (url.pathname === "/api/gold-price") {
+      if (request.method !== "GET") return json({ ok: false, error: "Method not allowed" }, 405);
+      return handleGoldPrice(request, ctx);
+    }
+
     // Public lead submission
     if (url.pathname === "/api/lead") {
       if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
       return handleLead(request, env, ctx);
+    }
+
+    // Create a Stripe Checkout Session for a denomination purchase
+    if (url.pathname === "/api/checkout") {
+      if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
+      return handleCheckout(request, env);
+    }
+
+    // Stripe webhook — order fulfillment on successful payment
+    if (url.pathname === "/api/webhook") {
+      if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
+      return handleStripeWebhook(request, env, ctx);
     }
 
     // Magic Data: auto-saves whatever's been typed into the lead form
@@ -41,12 +62,94 @@ export default {
       return json({ ok: false, error: "Method not allowed" }, 405);
     }
 
+    if (url.pathname === "/api/admin/pricing") {
+      if (!(await adminAuthed(request, env))) return unauthorized();
+      if (request.method === "GET") return adminGetPricing(env);
+      if (request.method === "POST") return adminSetPricing(request, env);
+      return json({ ok: false, error: "Method not allowed" }, 405);
+    }
+
+    if (url.pathname === "/api/admin/orders") {
+      if (!(await adminAuthed(request, env))) return unauthorized();
+      if (request.method === "GET") return adminListOrders(request, env);
+      return json({ ok: false, error: "Method not allowed" }, 405);
+    }
+
+    const orderPatchMatch = url.pathname.match(/^\/api\/admin\/orders\/(\d+)$/);
+    if (orderPatchMatch) {
+      if (!(await adminAuthed(request, env))) return unauthorized();
+      if (request.method === "PATCH") return adminUpdateOrder(request, env, Number(orderPatchMatch[1]));
+      return json({ ok: false, error: "Method not allowed" }, 405);
+    }
+
     // /admin already resolves to admin.html via Pages' clean-URL asset
     // handling — rewriting to /admin.html here would just bounce back
     // a 308 (that path redirects to the clean URL), looping forever.
     return env.ASSETS.fetch(request);
   },
 };
+
+// ---- Live gold spot price ----
+
+const GOLD_CACHE_URL = "https://internal.goldenbeemalaj.com/cache/gold-price"; // synthetic cache key, never fetched
+const GOLD_CACHE_TTL = 1800; // seconds — both upstreams only publish new values once or so a day
+
+// Goldback Inc.'s own calculator widget calls this endpoint client-side from
+// every visitor's browser on goldback.com/exchange-rates — the key below is
+// the one shipped in that page's public JS, not a private credential. It's
+// not a documented/versioned public API, so this could break if they change
+// it; the 30-min cache keeps our call volume low regardless.
+const GOLDBACK_RATE_API = "https://gbcapi.gbdomainapi.xyz/GBCalculatorSettingsAPICSharpProdV1/CurrencyRates";
+const GOLDBACK_RATE_API_KEY = "14b8cd90c80149a888d9986e22dbfb95";
+
+async function handleGoldPrice(request, ctx) {
+  const cache = caches.default;
+  const cacheKey = new Request(GOLD_CACHE_URL);
+
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached;
+
+  try {
+    // A single call to the public history endpoint covers both the chart
+    // and "current" price (its most recent day) — this API's anonymous
+    // tier shares a 30 req/min quota across all of Cloudflare's egress IPs
+    // (i.e. every Worker calling it anonymously, not just this one), so
+    // keeping to one upstream request keeps us well clear of that ceiling.
+    const historyRes = await fetch("https://api.goldprice.dev/v1/public/xau-history");
+    if (!historyRes.ok) {
+      throw new Error("Upstream gold price API error: " + historyRes.status);
+    }
+
+    const historyData = await historyRes.json();
+    const series = (historyData.series || [])
+      .slice()
+      .reverse()
+      .map((p) => ({ date: p.date, close: parseFloat(p.close) }));
+
+    if (!series.length) throw new Error("Unexpected gold price response shape");
+    const latest = series[series.length - 1];
+
+    const body = {
+      ok: true,
+      price: latest.close,
+      currency: "USD",
+      unit: "troy_ounce",
+      computedAt: latest.date,
+      history: series,
+      goldbackRate: await fetchGoldbackRate(),
+    };
+
+    const response = json(body);
+    response.headers.set("Cache-Control", "public, max-age=" + GOLD_CACHE_TTL);
+    ctx.waitUntil(cache.put(cacheKey, response.clone()));
+    return response;
+  } catch (err) {
+    console.log("handleGoldPrice error:", err.message);
+    // 200, not 5xx: Cloudflare's edge substitutes its own generic error
+    // page for 5xx responses, which would hide this JSON from the client.
+    return json({ ok: false, error: "Gold price temporarily unavailable." });
+  }
+}
 
 async function handleLead(request, env, ctx) {
   let data;
@@ -151,6 +254,257 @@ async function handlePartialLead(request, env, ctx) {
   }
 
   return json({ ok: true });
+}
+
+async function fetchGoldbackRate() {
+  try {
+    const res = await fetch(GOLDBACK_RATE_API, {
+      headers: { "Content-Type": "application/json", "Ocp-Apim-Subscription-Key": GOLDBACK_RATE_API_KEY },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const rate = data.success && data.quotes && parseFloat(data.quotes.USDUSD);
+    return rate > 0 ? rate : null;
+  } catch (err) {
+    console.log("fetchGoldbackRate error:", err.message);
+    return null; // informational only — never fail the whole gold-price response over this
+  }
+}
+
+// ---- Checkout (Stripe) ----
+
+async function handleCheckout(request, env) {
+  let data;
+  try {
+    data = await request.json();
+  } catch {
+    return json({ ok: false, error: "Invalid request." }, 400);
+  }
+
+  const series = clean(data.series, 60);
+  const denomination = clean(data.denomination, 40);
+  const faceValueGB = parseFloat(data.faceValueGB);
+  const quantity = Math.max(1, Math.min(50, parseInt(data.quantity, 10) || 1));
+
+  if (!series || !denomination || !(faceValueGB > 0)) {
+    return json({ ok: false, error: "Missing or invalid product details." }, 400);
+  }
+  if (!env.STRIPE_SECRET_KEY) {
+    return json({ ok: false, error: "Online purchase isn't turned on yet — please request a quote instead." }, 400);
+  }
+
+  let pricing;
+  try {
+    pricing = await env.DB.prepare("SELECT price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1").first();
+  } catch (err) {
+    console.log("checkout pricing lookup failed:", err.message);
+    return json({ ok: false, error: "Could not load current pricing." }, 500);
+  }
+  if (!pricing) {
+    return json({ ok: false, error: "Online purchase isn't turned on yet — please request a quote instead." }, 400);
+  }
+
+  const unitAmountCents = Math.round(faceValueGB * pricing.price_per_goldback_cents);
+  const origin = new URL(request.url).origin;
+
+  try {
+    const session = await stripeCreateCheckoutSession(env, {
+      mode: "payment",
+      success_url: origin + "/order-confirmation?session_id={CHECKOUT_SESSION_ID}",
+      cancel_url: origin + "/order-cancelled",
+      line_items: [
+        {
+          quantity: quantity,
+          price_data: {
+            currency: "usd",
+            unit_amount: unitAmountCents,
+            product_data: {
+              name: series + " " + denomination + " Goldback",
+              description: "Real 24-karat gold currency note — " + faceValueGB + " GB face value.",
+            },
+          },
+        },
+      ],
+      shipping_address_collection: { allowed_countries: ["US"] },
+      automatic_tax: { enabled: true },
+      metadata: {
+        series: series,
+        denomination: denomination,
+        face_value_gb: String(faceValueGB),
+        quantity: String(quantity),
+      },
+    });
+    return json({ ok: true, url: session.url });
+  } catch (err) {
+    console.log("Stripe checkout session creation failed:", err.message);
+    return json({ ok: false, error: "Could not start checkout. Please try again or request a quote." }, 500);
+  }
+}
+
+async function handleStripeWebhook(request, env, ctx) {
+  const sig = request.headers.get("Stripe-Signature");
+  const payload = await request.text();
+
+  if (!env.STRIPE_WEBHOOK_SECRET) {
+    console.log("Stripe webhook received but STRIPE_WEBHOOK_SECRET is not configured.");
+    return json({ ok: false, error: "Webhook not configured" }, 400);
+  }
+  if (!(await verifyStripeSignature(payload, sig, env.STRIPE_WEBHOOK_SECRET))) {
+    return json({ ok: false, error: "Invalid signature" }, 400);
+  }
+
+  let event;
+  try {
+    event = JSON.parse(payload);
+  } catch {
+    return json({ ok: false, error: "Invalid payload" }, 400);
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const md = session.metadata || {};
+    const details = session.customer_details || {};
+    const shipping = session.shipping_details || details || {};
+
+    try {
+      await env.DB.prepare(
+        "INSERT INTO orders (stripe_session_id, series, denomination, face_value_gb, quantity, amount_cents, customer_email, customer_name, shipping_address, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'paid')"
+      )
+        .bind(
+          session.id,
+          md.series || "",
+          md.denomination || "",
+          parseFloat(md.face_value_gb) || 0,
+          parseInt(md.quantity, 10) || 1,
+          session.amount_total || 0,
+          details.email || null,
+          details.name || null,
+          JSON.stringify(shipping)
+        )
+        .run();
+      ctx.waitUntil(notifyOrder(env, session, md));
+    } catch (err) {
+      // stripe_session_id is UNIQUE — a duplicate insert means Stripe
+      // already delivered this event once (it retries on timeout).
+      console.log("order insert (likely duplicate delivery):", err.message);
+    }
+  }
+
+  return json({ ok: true });
+}
+
+async function notifyOrder(env, session, md) {
+  if (!env.EMAIL_API_TOKEN || !env.CF_ACCOUNT_ID) {
+    console.log("Order email notification skipped: EMAIL_API_TOKEN / CF_ACCOUNT_ID not configured.");
+    return;
+  }
+  const details = session.customer_details || {};
+  const shipping = (session.shipping_details && session.shipping_details.address) || details.address || null;
+  const addrText = shipping
+    ? [shipping.line1, shipping.line2, shipping.city, shipping.state, shipping.postal_code, shipping.country]
+        .filter(Boolean)
+        .join(", ")
+    : "(no shipping address captured)";
+  const amount = ((session.amount_total || 0) / 100).toFixed(2);
+
+  const text = [
+    "New paid order from goldenbeemalaj.com",
+    "",
+    "Series:       " + (md.series || "—"),
+    "Denomination: " + (md.denomination || "—"),
+    "Quantity:     " + (md.quantity || "—"),
+    "Amount paid:  $" + amount,
+    "Customer:     " + (details.name || "—") + " <" + (details.email || "—") + ">",
+    "Ship to:      " + addrText,
+    "",
+    "Mark it shipped in the admin Orders tab once it goes out.",
+  ].join("\n");
+
+  try {
+    const res = await fetch(
+      "https://api.cloudflare.com/client/v4/accounts/" + env.CF_ACCOUNT_ID + "/email/sending/send",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer " + env.EMAIL_API_TOKEN, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: NOTIFY_TO,
+          from: NOTIFY_FROM,
+          subject:
+            "New order: " + (md.series || "") + " " + (md.denomination || "") + " ×" + (md.quantity || 1) + " — $" + amount,
+          text: text,
+        }),
+      }
+    );
+    if (!res.ok) console.log("Order email send failed:", res.status, await res.text());
+  } catch (err) {
+    console.log("Order email send error:", err.message);
+  }
+}
+
+// ---- Stripe REST helpers (no SDK — plain fetch, consistent with the rest of this worker) ----
+
+async function stripeCreateCheckoutSession(env, params) {
+  const form = toStripeForm(params, "", new URLSearchParams());
+  const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + env.STRIPE_SECRET_KEY,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: form.toString(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data.error && data.error.message) || "Stripe error");
+  return data;
+}
+
+// Stripe's REST API expects PHP-style bracket-indexed form encoding for
+// nested objects/arrays, e.g. line_items[0][price_data][unit_amount]=1234.
+function toStripeForm(obj, prefix, form) {
+  Object.keys(obj).forEach(function (key) {
+    var value = obj[key];
+    var fullKey = prefix ? prefix + "[" + key + "]" : key;
+    if (value === null || value === undefined) return;
+    if (typeof value === "object") {
+      toStripeForm(value, fullKey, form);
+    } else {
+      form.append(fullKey, String(value));
+    }
+  });
+  return form;
+}
+
+async function verifyStripeSignature(payload, sigHeader, secret) {
+  if (!sigHeader) return false;
+  var parts = {};
+  sigHeader.split(",").forEach(function (kv) {
+    var i = kv.indexOf("=");
+    if (i > 0) parts[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  var timestamp = parts.t;
+  var sig = parts.v1;
+  if (!timestamp || !sig) return false;
+
+  // Reject stale signatures (Stripe recommends a 5-minute tolerance against replay attacks).
+  var age = Math.abs(Date.now() / 1000 - Number(timestamp));
+  if (!(age < 300)) return false;
+
+  var key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  var macBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(timestamp + "." + payload));
+  var macHex = Array.from(new Uint8Array(macBuf))
+    .map(function (b) { return b.toString(16).padStart(2, "0"); })
+    .join("");
+
+  if (macHex.length !== sig.length) return false;
+  var diff = 0;
+  for (var i = 0; i < macHex.length; i++) diff |= macHex.charCodeAt(i) ^ sig.charCodeAt(i);
+  return diff === 0;
 }
 
 async function notify(env, lead) {
@@ -403,6 +757,78 @@ async function adminUpdateLead(request, env, id) {
     return json({ ok: true });
   } catch (err) {
     console.log("adminUpdateLead error:", err.message);
+    return json({ ok: false, error: "Database error" }, 500);
+  }
+}
+
+// ---- Admin: pricing ----
+
+async function adminGetPricing(env) {
+  try {
+    const row = await env.DB.prepare(
+      "SELECT price_per_goldback_cents, updated_at FROM pricing ORDER BY id DESC LIMIT 1"
+    ).first();
+    return json({ ok: true, pricing: row || null });
+  } catch (err) {
+    console.log("adminGetPricing error:", err.message);
+    return json({ ok: false, error: "Database error" }, 500);
+  }
+}
+
+async function adminSetPricing(request, env) {
+  let data;
+  try {
+    data = await request.json();
+  } catch {
+    return json({ ok: false, error: "Invalid JSON" }, 400);
+  }
+  const cents = Math.round(parseFloat(data.price_per_goldback) * 100);
+  if (!(cents > 0)) return json({ ok: false, error: "Invalid price." }, 400);
+
+  try {
+    await env.DB.prepare("INSERT INTO pricing (price_per_goldback_cents) VALUES (?1)").bind(cents).run();
+    return json({ ok: true });
+  } catch (err) {
+    console.log("adminSetPricing error:", err.message);
+    return json({ ok: false, error: "Database error" }, 500);
+  }
+}
+
+// ---- Admin: orders ----
+
+async function adminListOrders(request, env) {
+  const url = new URL(request.url);
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "200", 10) || 200, 500);
+
+  try {
+    const result = await env.DB.prepare(
+      "SELECT id, stripe_session_id, series, denomination, face_value_gb, quantity, amount_cents, customer_email, customer_name, shipping_address, status, created_at FROM orders ORDER BY created_at DESC LIMIT ?1"
+    )
+      .bind(limit)
+      .all();
+    return json({ ok: true, orders: result.results });
+  } catch (err) {
+    console.log("adminListOrders error:", err.message);
+    return json({ ok: false, error: "Database error" }, 500);
+  }
+}
+
+async function adminUpdateOrder(request, env, id) {
+  let data;
+  try {
+    data = await request.json();
+  } catch {
+    return json({ ok: false, error: "Invalid JSON" }, 400);
+  }
+
+  const valid = ["paid", "shipped", "delivered", "refunded"];
+  if (!valid.includes(data.status)) return json({ ok: false, error: "Invalid status" }, 400);
+
+  try {
+    await env.DB.prepare("UPDATE orders SET status = ?1 WHERE id = ?2").bind(data.status, id).run();
+    return json({ ok: true });
+  } catch (err) {
+    console.log("adminUpdateOrder error:", err.message);
     return json({ ok: false, error: "Database error" }, 500);
   }
 }

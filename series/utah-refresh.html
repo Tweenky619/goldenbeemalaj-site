@@ -98,6 +98,10 @@
   .denom-card .status-tag { display: inline-block; font-family: Arial, Helvetica, sans-serif; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.2rem 0.55rem; border-radius: 12px; }
   .status-tag.in-stock { background: #e8f2e4; color: #3d6b2f; }
   .status-tag.presale { background: #fdf0d5; color: #a05a00; }
+  .buy-row { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
+  .buy-qty { width: 3.2rem; padding: 0.4rem 0.3rem; text-align: center; border: 1px solid #e8dfc8; border-radius: 6px; font-family: Arial, Helvetica, sans-serif; font-size: 0.85rem; }
+  .buy-btn { flex: 1; padding: 0.55rem 0.6rem; font-size: 0.82rem; }
+  .buy-error { color: #b03a2e; font-family: Arial, Helvetica, sans-serif; font-size: 0.78rem; margin-top: 0.4rem; }
   .denom-card img { cursor: zoom-in; transition: opacity 0.15s ease; }
   .denom-card img:hover { opacity: 0.85; }
   .lightbox-overlay { display: none; position: fixed; inset: 0; background: rgba(10,8,5,0.88); z-index: 1000; align-items: center; justify-content: center; padding: 5vh 5vw; cursor: zoom-out; }
@@ -126,6 +130,7 @@
     nav a { margin-left: 0.9rem; font-size: 0.9rem; }
   }
 </style>
+<script defer src="/ticker.js"></script>
 </head>
 <body>
 
@@ -190,6 +195,11 @@
           <div class="denom-virtue">Justitia &middot; Justice</div>
           <p>Set at Balanced Rock near Moab, Justitia holds scales and a sword, blindfolded for impartiality. Her belt reads "Deseret" &mdash; the original name proposed for the Beehive State.</p>
           <span class="status-tag in-stock">In Stock</span>
+          <div class="buy-row" data-series="Utah Refresh" data-denomination="&frac14; GB" data-face-value="0.25">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -212,6 +222,11 @@
           <div class="denom-virtue">Patientia &middot; Endurance</div>
           <p>A pioneer woman pushes a handcart through Emigration Canyon, the final passage for handcart companies entering the Salt Lake Valley in the mid-1800s.</p>
           <span class="status-tag in-stock">In Stock</span>
+          <div class="buy-row" data-series="Utah Refresh" data-denomination="&frac12; GB" data-face-value="0.5">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -234,6 +249,11 @@
           <div class="denom-virtue">Prudentia &middot; Prudence</div>
           <p>A Ute woman in traditional deerskin dress sits on Utah's red rocks near Delicate Arch &mdash; honoring the longest continuously living Indigenous inhabitants of present-day Utah.</p>
           <span class="status-tag in-stock">In Stock</span>
+          <div class="buy-row" data-series="Utah Refresh" data-denomination="1 GB" data-face-value="1">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -256,6 +276,11 @@
           <div class="denom-virtue">Gratia &middot; Grace</div>
           <p>Retells the 1848 Miracle of the Gulls, when flocks of California gulls saved the Salt Lake Valley settlers' crops from a devastating cricket infestation.</p>
           <span class="status-tag in-stock">In Stock</span>
+          <div class="buy-row" data-series="Utah Refresh" data-denomination="2 GB" data-face-value="2">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -278,6 +303,11 @@
           <div class="denom-virtue">Devotionis &middot; Devotion</div>
           <p>Set before the Salt Lake City Temple, honoring the pioneers' faith-driven labor &mdash; her basket filled with the earliest crops harvested in the valley.</p>
           <span class="status-tag in-stock">In Stock</span>
+          <div class="buy-row" data-series="Utah Refresh" data-denomination="5 GB" data-face-value="5">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -300,6 +330,11 @@
           <div class="denom-virtue">Aeternitas &middot; Eternity</div>
           <p>Marks the 1991 discovery of the Utahraptor near Moab, one of Utah's most significant paleontological finds, with an hourglass symbolizing the endless passage of time.</p>
           <span class="status-tag in-stock">In Stock</span>
+          <div class="buy-row" data-series="Utah Refresh" data-denomination="10 GB" data-face-value="10">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -322,6 +357,11 @@
           <div class="denom-virtue">Disciplina &middot; Discipline</div>
           <p>A snowboarder catches air above Park City, host of the 2002 Winter Olympics, her jacket embroidered with the Olympic torch and the Utah beehive on her board.</p>
           <span class="status-tag in-stock">In Stock</span>
+          <div class="buy-row" data-series="Utah Refresh" data-denomination="25 GB" data-face-value="25">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -344,6 +384,11 @@
           <div class="denom-virtue">Libertas &middot; Liberty</div>
           <p>The capstone virtue drives the final blow at the 1869 Golden Spike Ceremony at Promontory Summit, completing the nation's first transcontinental railroad.</p>
           <span class="status-tag in-stock">In Stock</span>
+          <div class="buy-row" data-series="Utah Refresh" data-denomination="50 GB" data-face-value="50">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
     </div>
@@ -424,5 +469,6 @@
   })();
 </script>
 
+<script src="/checkout.js"></script>
 </body>
 </html>

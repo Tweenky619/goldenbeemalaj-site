@@ -58,6 +58,25 @@
   .section-sub { text-align: center; color: var(--muted); max-width: 640px; margin: 0 auto 2.5rem; font-size: 1.05rem; }
   .gold-rule { width: 70px; height: 3px; background: var(--gold); margin: 0.9rem auto 1.2rem; border: 0; }
 
+  /* Live gold price */
+  .gold-chart { background: var(--dark-2); color: var(--cream); }
+  .gold-chart .section-title { color: var(--gold-light); }
+  .gold-chart .section-sub { color: #cfc6b0; }
+  .gold-chart-card { max-width: 780px; margin: 0 auto; background: rgba(255,255,255,0.04); border: 1px solid rgba(218,153,0,0.3); border-radius: 10px; padding: 1.6rem 1.8rem; }
+  .gold-chart-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1rem; }
+  .gold-chart-price { font-family: Arial, Helvetica, sans-serif; font-size: 2.1rem; font-weight: bold; color: var(--gold-light); }
+  .gold-chart-price small { font-size: 0.95rem; color: #cfc6b0; font-weight: normal; margin-left: 0.4rem; }
+  .gold-chart-change { font-family: Arial, Helvetica, sans-serif; font-size: 1rem; }
+  .gold-chart-change.up { color: #7bc67e; }
+  .gold-chart-change.down { color: #e2776b; }
+  .gold-chart-canvas-wrap { position: relative; height: 220px; }
+  .gold-chart-canvas-wrap canvas { width: 100%; height: 100%; display: block; }
+  .goldback-rate-row { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.04); border: 1px solid rgba(218,153,0,0.25); border-radius: 8px; padding: 0.7rem 1rem; margin-top: 1rem; font-family: Arial, Helvetica, sans-serif; }
+  .goldback-rate-label { font-size: 0.85rem; color: #cfc6b0; }
+  .goldback-rate-value { font-size: 1.15rem; font-weight: bold; color: var(--gold-light); }
+  .gold-chart-note { font-family: Arial, Helvetica, sans-serif; font-size: 0.8rem; color: #a89e8a; margin-top: 0.9rem; text-align: center; }
+  .gold-chart-status { text-align: center; color: #cfc6b0; font-family: Arial, Helvetica, sans-serif; font-size: 0.95rem; padding: 2rem 0; }
+
   /* What is a Goldback */
   .what { background: var(--cream); }
   .what-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; max-width: 1050px; margin: 0 auto; }
@@ -195,6 +214,7 @@
     nav a { margin-left: 0.9rem; font-size: 0.9rem; }
   }
 </style>
+<script defer src="/ticker.js"></script>
 </head>
 <body>
 
@@ -226,6 +246,124 @@
     <img src="images/idaho/idaho-normal-uv-compare.jpg" alt="Idaho Goldback notes in normal light next to the same notes glowing under UV light, showing the anti-counterfeit verification feature">
   </div>
 </section>
+
+<section class="gold-chart" id="gold-price">
+  <h2 class="section-title">Live Gold Price</h2>
+  <hr class="gold-rule">
+  <p class="section-sub">The real spot price of gold, updated live — the same market Goldbacks are backed by.</p>
+  <div class="gold-chart-card">
+    <div id="goldChartStatus" class="gold-chart-status">Loading live gold price&hellip;</div>
+    <div id="goldChartBody" style="display:none;">
+      <div class="gold-chart-head">
+        <div class="gold-chart-price" id="goldChartPrice">&mdash;</div>
+        <div class="gold-chart-change" id="goldChartChange"></div>
+      </div>
+      <div class="gold-chart-canvas-wrap">
+        <canvas id="goldChartCanvas"></canvas>
+      </div>
+      <div class="goldback-rate-row" id="goldbackRateRow" hidden>
+        <span class="goldback-rate-label">Goldback Inc. Official Daily Rate</span>
+        <span class="goldback-rate-value" id="goldbackRateValue">&mdash;</span>
+      </div>
+      <p class="gold-chart-note">Spot price of gold (XAU/USD), per troy ounce &middot; 1-year daily history &middot; neither of these is Goldenbee MALAJ's own exchange rate &mdash; <a href="https://app.goldenbeemalaj.com/#exchange" style="color:var(--gold-light);">request a live quote</a> for our current flat rate.</p>
+    </div>
+  </div>
+</section>
+<script>
+  (function () {
+    var statusEl = document.getElementById('goldChartStatus');
+    var bodyEl = document.getElementById('goldChartBody');
+    var priceEl = document.getElementById('goldChartPrice');
+    var changeEl = document.getElementById('goldChartChange');
+    var canvas = document.getElementById('goldChartCanvas');
+
+    fetch('/api/gold-price')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) throw new Error(data.error || 'Unavailable');
+        renderChart(data);
+      })
+      .catch(function () {
+        statusEl.textContent = 'Live gold price is temporarily unavailable — check back shortly.';
+      });
+
+    function renderChart(data) {
+      var history = data.history || [];
+      priceEl.innerHTML = '$' + data.price.toFixed(2) + '<small>/oz</small>';
+
+      if (history.length > 1) {
+        var first = history[0].close;
+        var last = history[history.length - 1].close;
+        var pct = ((last - first) / first) * 100;
+        var up = pct >= 0;
+        changeEl.className = 'gold-chart-change ' + (up ? 'up' : 'down');
+        changeEl.textContent = (up ? '▲ ' : '▼ ') + Math.abs(pct).toFixed(2) + '% past year';
+      }
+
+      if (data.goldbackRate) {
+        document.getElementById('goldbackRateValue').textContent = '$' + data.goldbackRate.toFixed(2) + ' / Goldback';
+        document.getElementById('goldbackRateRow').hidden = false;
+      }
+
+      statusEl.style.display = 'none';
+      bodyEl.style.display = 'block';
+      drawLine(canvas, history.map(function (p) { return p.close; }));
+      window.addEventListener('resize', debounce(function () {
+        drawLine(canvas, history.map(function (p) { return p.close; }));
+      }, 200));
+    }
+
+    function drawLine(canvas, values) {
+      if (!values.length) return;
+      var dpr = window.devicePixelRatio || 1;
+      var rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      var ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      var w = rect.width, h = rect.height, pad = 8;
+
+      var min = Math.min.apply(null, values);
+      var max = Math.max.apply(null, values);
+      var range = (max - min) || 1;
+
+      function x(i) { return pad + (i / (values.length - 1)) * (w - pad * 2); }
+      function y(v) { return h - pad - ((v - min) / range) * (h - pad * 2); }
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Fill under the line
+      ctx.beginPath();
+      ctx.moveTo(x(0), h - pad);
+      values.forEach(function (v, i) { ctx.lineTo(x(i), y(v)); });
+      ctx.lineTo(x(values.length - 1), h - pad);
+      ctx.closePath();
+      var grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, 'rgba(218,153,0,0.35)');
+      grad.addColorStop(1, 'rgba(218,153,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Line
+      ctx.beginPath();
+      values.forEach(function (v, i) {
+        var px = x(i), py = y(v);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      });
+      ctx.strokeStyle = '#FDDD3B';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    function debounce(fn, ms) {
+      var t;
+      return function () {
+        clearTimeout(t);
+        t = setTimeout(fn, ms);
+      };
+    }
+  })();
+</script>
 
 <section class="what" id="goldbacks">
   <img src="images/brand/Goldback_Horizontal-Black&amp;Gold.png" alt="Goldback logo" style="width:240px;max-width:70%;margin:0 auto 1.2rem;">
