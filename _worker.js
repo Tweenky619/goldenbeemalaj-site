@@ -90,7 +90,7 @@ export default {
     // hours after a deploy. A Pages `_headers` file can't reach this,
     // since this project's own _worker.js (Advanced Mode) intercepts every
     // request before Pages' static-file header pipeline would apply it.
-    if (url.pathname === "/checkout.js" || url.pathname === "/ticker.js") {
+    if (url.pathname === "/gb-shop.js" || url.pathname === "/ticker.js") {
       const response = new Response(assetResponse.body, assetResponse);
       response.headers.set("Cache-Control", "no-store");
       return response;
