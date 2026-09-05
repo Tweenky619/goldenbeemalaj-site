@@ -93,6 +93,10 @@
   .denom-card .status-tag { display: inline-block; font-family: Arial, Helvetica, sans-serif; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.2rem 0.55rem; border-radius: 12px; }
   .status-tag.in-stock { background: #e8f2e4; color: #3d6b2f; }
   .status-tag.on-request { background: #f1ead7; color: var(--muted); }
+  .buy-row { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
+  .buy-qty { width: 3.2rem; padding: 0.4rem 0.3rem; text-align: center; border: 1px solid #e8dfc8; border-radius: 6px; font-family: Arial, Helvetica, sans-serif; font-size: 0.85rem; }
+  .buy-btn { flex: 1; padding: 0.55rem 0.6rem; font-size: 0.82rem; }
+  .buy-error { color: #b03a2e; font-family: Arial, Helvetica, sans-serif; font-size: 0.78rem; margin-top: 0.4rem; }
   .denom-card img, .compare-images img { cursor: zoom-in; transition: opacity 0.15s ease; }
   .denom-card img:hover, .compare-images img:hover { opacity: 0.85; }
   .lightbox-overlay { display: none; position: fixed; inset: 0; background: rgba(10,8,5,0.88); z-index: 1000; align-items: center; justify-content: center; padding: 5vh 5vw; cursor: zoom-out; }
@@ -186,6 +190,11 @@
           <div class="denom-virtue">Justitia &middot; Justice</div>
           <p>The first quarter denomination ever designed. Justitia carries raised scales, a lowered sword, and a blindfold before Hells Canyon, with Idaho's elk, syringa, and monarch butterfly woven throughout.</p>
           <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Idaho" data-denomination="&frac14; GB" data-face-value="0.25">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -208,6 +217,11 @@
           <div class="denom-virtue">Pietas &middot; Devotion</div>
           <p>Honors Sacagawea guiding the Lewis and Clark Expedition through Lemhi Pass with her infant son at her side &mdash; a tribute to devotion to family, people, and homeland.</p>
           <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Idaho" data-denomination="&frac12; GB" data-face-value="0.5">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -230,6 +244,11 @@
           <div class="denom-virtue">Fides &middot; Faith and Trust</div>
           <p>A pioneer mother and child cross the California Trail at City of Rocks, their trust in each other echoing the faith that carried settlers across Idaho's landscape.</p>
           <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Idaho" data-denomination="1 GB" data-face-value="1">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -252,6 +271,11 @@
           <div class="denom-virtue">Civitas &middot; Community</div>
           <p>Set on Boise's Basque Block, a dancer performs the traditional Uztai Txiki hoop dance &mdash; honoring one of the largest Basque communities in the United States.</p>
           <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Idaho" data-denomination="2 GB" data-face-value="2">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -441,5 +465,6 @@
     });
   })();
 </script>
+<script src="/checkout.js"></script>
 </body>
 </html>

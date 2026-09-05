@@ -94,6 +94,10 @@
   .status-tag.in-stock { background: #e8f2e4; color: #3d6b2f; }
   .status-tag.on-request { background: #f1ead7; color: var(--muted); }
   .status-tag.presale { background: #fdf0d5; color: #a05a00; }
+  .buy-row { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
+  .buy-qty { width: 3.2rem; padding: 0.4rem 0.3rem; text-align: center; border: 1px solid #e8dfc8; border-radius: 6px; font-family: Arial, Helvetica, sans-serif; font-size: 0.85rem; }
+  .buy-btn { flex: 1; padding: 0.55rem 0.6rem; font-size: 0.82rem; }
+  .buy-error { color: #b03a2e; font-family: Arial, Helvetica, sans-serif; font-size: 0.78rem; margin-top: 0.4rem; }
   .denom-card img, .compare-images img { cursor: zoom-in; transition: opacity 0.15s ease; }
   .denom-card img:hover, .compare-images img:hover { opacity: 0.85; }
   .lightbox-overlay { display: none; position: fixed; inset: 0; background: rgba(10,8,5,0.88); z-index: 1000; align-items: center; justify-content: center; padding: 5vh 5vw; cursor: zoom-out; }
@@ -169,6 +173,11 @@
           <div class="denom-virtue">Reverentia &middot; Reverence</div>
           <p>A Shoshone woman stands before Devil's Tower with a bald eagle on her arm, surrounded by sunflowers and an American bison &mdash; reverence for creation and the sacred.</p>
           <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Wyoming" data-denomination="1 GB" data-face-value="1">
+            <input type="number" class="buy-qty" value="1" min="1" max="50">
+            <button type="button" class="btn btn-gold buy-btn">Buy Now</button>
+          </div>
+          <div class="buy-error" hidden></div>
         </div>
       </div>
       <div class="denom-card">
@@ -284,5 +293,6 @@
     });
   })();
 </script>
+<script src="/checkout.js"></script>
 </body>
 </html>
