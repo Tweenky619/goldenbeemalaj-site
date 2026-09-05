@@ -316,7 +316,7 @@ async function handleCheckout(request, env) {
   }
 
   if (!env.STRIPE_SECRET_KEY) {
-    return json({ ok: false, error: "Online purchase isn't turned on yet — please request a quote instead." }, 400);
+    return json({ ok: false, error: "Checkout is temporarily unavailable — please try again shortly or call/email us to order." }, 400);
   }
 
   let pricing;
@@ -327,7 +327,7 @@ async function handleCheckout(request, env) {
     return json({ ok: false, error: "Could not load current pricing." }, 500);
   }
   if (!pricing) {
-    return json({ ok: false, error: "Online purchase isn't turned on yet — please request a quote instead." }, 400);
+    return json({ ok: false, error: "Checkout is temporarily unavailable — please try again shortly or call/email us to order." }, 400);
   }
 
   const origin = new URL(request.url).origin;
