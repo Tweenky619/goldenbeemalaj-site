@@ -349,7 +349,7 @@ async function handleStripeWebhook(request, env, ctx) {
     console.log("Stripe webhook received but STRIPE_WEBHOOK_SECRET is not configured.");
     return json({ ok: false, error: "Webhook not configured" }, 400);
   }
-  if (!(await verifyStripeSignature(payload, sig, env.STRIPE_WEBHOOK_SECRET))) {
+  if (!(await verifyStripeSignature(payload, sig, env.STRIPE_WEBHOOK_SECRET.replace(/\s+/g, "")))) {
     return json({ ok: false, error: "Invalid signature" }, 400);
   }
 
@@ -445,10 +445,14 @@ async function notifyOrder(env, session, md) {
 
 async function stripeCreateCheckoutSession(env, params) {
   const form = toStripeForm(params, "", new URLSearchParams());
+  // Stripe API keys never legitimately contain whitespace — stripping all of
+  // it (not just the edges) guards against a stray newline from however the
+  // secret was copied into the dashboard, a common source of a fetch()
+  // "Invalid header value" error.
   const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
     headers: {
-      Authorization: "Bearer " + env.STRIPE_SECRET_KEY,
+      Authorization: "Bearer " + env.STRIPE_SECRET_KEY.replace(/\s+/g, ""),
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: form.toString(),
