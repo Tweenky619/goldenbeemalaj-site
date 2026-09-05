@@ -28,6 +28,12 @@ export default {
       return handleLead(request, env, ctx);
     }
 
+    // Public price quote — used to lock in a rate for the 10-minute cart timer
+    if (url.pathname === "/api/pricing") {
+      if (request.method !== "GET") return json({ ok: false, error: "Method not allowed" }, 405);
+      return handlePublicPricing(env);
+    }
+
     // Create a Stripe Checkout Session for a denomination purchase
     if (url.pathname === "/api/checkout") {
       if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
@@ -319,9 +325,20 @@ async function handleCheckout(request, env) {
     return json({ ok: false, error: "Checkout is temporarily unavailable — please try again shortly or call/email us to order." }, 400);
   }
 
+  // Like a bullion dealer's quote lock: the cart fetches and displays a
+  // price via /api/pricing, with a 10-minute countdown, and passes that
+  // exact pricingId back here so the customer pays what they were quoted —
+  // not whatever the admin-set rate happens to be at the moment they click
+  // Checkout. Falls back to the current rate if no valid lock was sent.
   let pricing;
   try {
-    pricing = await env.DB.prepare("SELECT price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1").first();
+    const lockedId = parseInt(data.pricingId, 10);
+    if (lockedId > 0) {
+      pricing = await env.DB.prepare("SELECT id, price_per_goldback_cents FROM pricing WHERE id = ?1").bind(lockedId).first();
+    }
+    if (!pricing) {
+      pricing = await env.DB.prepare("SELECT id, price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1").first();
+    }
   } catch (err) {
     console.log("checkout pricing lookup failed:", err.message);
     return json({ ok: false, error: "Could not load current pricing." }, 500);
@@ -845,6 +862,19 @@ async function adminUpdateLead(request, env, id) {
 }
 
 // ---- Admin: pricing ----
+
+async function handlePublicPricing(env) {
+  try {
+    const row = await env.DB.prepare(
+      "SELECT id, price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1"
+    ).first();
+    if (!row) return json({ ok: false, error: "Pricing not available." });
+    return json({ ok: true, pricingId: row.id, pricePerGoldbackCents: row.price_per_goldback_cents });
+  } catch (err) {
+    console.log("handlePublicPricing error:", err.message);
+    return json({ ok: false, error: "Pricing not available." });
+  }
+}
 
 async function adminGetPricing(env) {
   try {

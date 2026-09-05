@@ -3,8 +3,16 @@
 // a .buy-qty number input, a .buy-btn button, and an optional sibling
 // .buy-error. Cart persists in localStorage across pages; checkout submits
 // every item in one Stripe Checkout Session.
+//
+// Price lock: like a bullion dealer's quote lock, opening the cart fetches
+// the current per-Goldback rate and holds it for 10 minutes (countdown shown
+// in the drawer). Checkout sends that locked pricingId back to the server,
+// so the customer pays what they were quoted even if the admin rate changes
+// before they finish paying. The lock silently refreshes if it expires.
 (function () {
   var CART_KEY = 'gbm_cart';
+  var LOCK_KEY = 'gbm_price_lock';
+  var LOCK_DURATION_MS = 10 * 60 * 1000;
 
   function getCart() {
     try {
@@ -46,6 +54,48 @@
     renderDrawer();
   }
 
+  // ---- Price lock ----
+  function getLock() {
+    try {
+      return JSON.parse(localStorage.getItem(LOCK_KEY) || 'null');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setLock(lock) {
+    try {
+      localStorage.setItem(LOCK_KEY, JSON.stringify(lock));
+    } catch (e) {}
+  }
+
+  function lockAgeMs(lock) {
+    return Date.now() - lock.lockedAt;
+  }
+
+  function isLockValid(lock) {
+    return !!lock && lockAgeMs(lock) < LOCK_DURATION_MS;
+  }
+
+  // Ensures a valid lock exists, fetching a fresh quote if missing/expired,
+  // then calls back with the lock (or null if pricing is unavailable).
+  function ensureLock(callback) {
+    var lock = getLock();
+    if (isLockValid(lock)) {
+      callback(lock);
+      return;
+    }
+    fetch('/api/pricing')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) { callback(null); return; }
+        var fresh = { pricingId: data.pricingId, priceCents: data.pricePerGoldbackCents, lockedAt: Date.now() };
+        setLock(fresh);
+        callback(fresh);
+      })
+      .catch(function () { callback(null); });
+  }
+
   // ---- Styles ----
   var style = document.createElement('style');
   style.textContent = [
@@ -59,12 +109,18 @@
     '.gb-cart-head h3 { margin: 0; font-size: 1.15rem; color: #1a1611; }',
     '.gb-cart-close { background: none; border: none; font-size: 1.6rem; line-height: 1; cursor: pointer; color: #6b6252; }',
     '.gb-cart-empty { padding: 2rem 1.4rem; color: #6b6252; font-size: 0.95rem; }',
+    '.gb-cart-lock { margin: 0.9rem 1.4rem 0; background: #fff; border: 1px solid #e8dfc8; border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.82rem; color: #6b6252; display: flex; align-items: center; justify-content: space-between; }',
+    '.gb-cart-lock-timer { font-weight: bold; color: #DA9900; font-variant-numeric: tabular-nums; }',
     '.gb-cart-items { padding: 0.6rem 1.4rem; }',
     '.gb-cart-item { padding: 0.8rem 0; border-bottom: 1px solid #e8dfc8; }',
-    '.gb-cart-item-name { font-weight: bold; font-size: 0.95rem; margin-bottom: 0.5rem; }',
+    '.gb-cart-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }',
+    '.gb-cart-item-name { font-weight: bold; font-size: 0.95rem; }',
+    '.gb-cart-item-price { font-size: 0.9rem; color: #6b6252; white-space: nowrap; }',
     '.gb-cart-item-controls { display: flex; gap: 0.6rem; align-items: center; }',
     '.gb-cart-qty { width: 3.2rem; padding: 0.35rem; text-align: center; border: 1px solid #e8dfc8; border-radius: 6px; font-size: 0.85rem; }',
     '.gb-cart-remove { background: none; border: none; color: #b03a2e; font-size: 0.82rem; cursor: pointer; text-decoration: underline; }',
+    '.gb-cart-subtotal { display: flex; justify-content: space-between; padding: 0.9rem 1.4rem; font-weight: bold; font-size: 1rem; border-top: 1px solid #e8dfc8; }',
+    '.gb-cart-note { font-size: 0.78rem; color: #6b6252; padding: 0 1.4rem; margin: -0.4rem 0 0.8rem; }',
     '.gb-cart-error { color: #b03a2e; font-size: 0.85rem; padding: 0 1.4rem; margin-bottom: 0.6rem; }',
     '.gb-cart-checkout { display: block; width: calc(100% - 2.8rem); margin: 1rem 1.4rem 1.4rem; padding: 0.85rem; border: none; border-radius: 6px; background: #DA9900; color: #1a1611; font-weight: bold; font-size: 1rem; cursor: pointer; }',
     '.gb-cart-checkout:hover { background: #FDDD3B; }',
@@ -96,17 +152,40 @@
   drawer.hidden = true;
   document.body.appendChild(drawer);
 
+  var tickInterval = null;
+
   function openDrawer() {
     renderDrawer();
     drawer.hidden = false;
     overlay.hidden = false;
+    if (tickInterval) clearInterval(tickInterval);
+    tickInterval = setInterval(tick, 1000);
   }
   function closeDrawer() {
     drawer.hidden = true;
     overlay.hidden = true;
+    if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
   }
   cartBtn.addEventListener('click', openDrawer);
   overlay.addEventListener('click', closeDrawer);
+
+  function tick() {
+    var lock = getLock();
+    if (!isLockValid(lock)) {
+      // Expired mid-session — refresh silently and redraw with the new price.
+      renderDrawer();
+      return;
+    }
+    var el = document.getElementById('gbCartLockTimer');
+    if (el) el.textContent = formatCountdown(LOCK_DURATION_MS - lockAgeMs(lock));
+  }
+
+  function formatCountdown(ms) {
+    var totalSec = Math.max(0, Math.ceil(ms / 1000));
+    var m = Math.floor(totalSec / 60);
+    var s = totalSec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
 
   function renderBadge() {
     var cart = getCart();
@@ -120,39 +199,69 @@
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  function fmtUsd(cents) {
+    return '$' + (cents / 100).toFixed(2);
+  }
+
   function renderDrawer() {
     var cart = getCart();
     var html = '<div class="gb-cart-head"><h3>Your Cart</h3><button type="button" class="gb-cart-close">&times;</button></div>';
+
     if (!cart.length) {
       html += '<p class="gb-cart-empty">Your cart is empty. Add a denomination from any series page to get started.</p>';
-    } else {
+      drawer.innerHTML = html;
+      drawer.querySelector('.gb-cart-close').addEventListener('click', closeDrawer);
+      return;
+    }
+
+    ensureLock(function (lock) {
+      if (!lock) {
+        html += '<p class="gb-cart-empty">Could not load current pricing. Please try again shortly.</p>';
+        drawer.innerHTML = html;
+        drawer.querySelector('.gb-cart-close').addEventListener('click', closeDrawer);
+        return;
+      }
+
+      var subtotalCents = 0;
+      html += '<div class="gb-cart-lock">Price locked <span class="gb-cart-lock-timer" id="gbCartLockTimer">' +
+        formatCountdown(LOCK_DURATION_MS - lockAgeMs(lock)) + '</span></div>';
+
       html += '<div class="gb-cart-items">' + cart.map(function (item, i) {
+        var lineCents = Math.round(item.faceValueGB * lock.priceCents) * item.quantity;
+        subtotalCents += lineCents;
         return '<div class="gb-cart-item">' +
-          '<div class="gb-cart-item-name">' + esc(item.series) + ' ' + item.denomination + '</div>' +
+          '<div class="gb-cart-item-top">' +
+            '<div class="gb-cart-item-name">' + esc(item.series) + ' ' + item.denomination + '</div>' +
+            '<div class="gb-cart-item-price">' + fmtUsd(lineCents) + '</div>' +
+          '</div>' +
           '<div class="gb-cart-item-controls">' +
             '<input type="number" class="gb-cart-qty" data-index="' + i + '" value="' + item.quantity + '" min="1" max="999">' +
             '<button type="button" class="gb-cart-remove" data-index="' + i + '">Remove</button>' +
           '</div>' +
         '</div>';
       }).join('') + '</div>';
+
+      html += '<div class="gb-cart-subtotal"><span>Subtotal</span><span>' + fmtUsd(subtotalCents) + '</span></div>';
+      html += '<p class="gb-cart-note">Plus shipping and any applicable sales tax, calculated at checkout.</p>';
       html += '<div class="gb-cart-error" id="gbCartError" hidden></div>';
       html += '<button type="button" class="gb-cart-checkout" id="gbCartCheckoutBtn">Checkout</button>';
-    }
-    drawer.innerHTML = html;
 
-    drawer.querySelector('.gb-cart-close').addEventListener('click', closeDrawer);
-    drawer.querySelectorAll('.gb-cart-qty').forEach(function (input) {
-      input.addEventListener('change', function () {
-        updateQty(parseInt(input.dataset.index, 10), parseInt(input.value, 10) || 0);
+      drawer.innerHTML = html;
+
+      drawer.querySelector('.gb-cart-close').addEventListener('click', closeDrawer);
+      drawer.querySelectorAll('.gb-cart-qty').forEach(function (input) {
+        input.addEventListener('change', function () {
+          updateQty(parseInt(input.dataset.index, 10), parseInt(input.value, 10) || 0);
+        });
       });
-    });
-    drawer.querySelectorAll('.gb-cart-remove').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        removeFromCart(parseInt(btn.dataset.index, 10));
+      drawer.querySelectorAll('.gb-cart-remove').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          removeFromCart(parseInt(btn.dataset.index, 10));
+        });
       });
+      var checkoutBtn = drawer.querySelector('#gbCartCheckoutBtn');
+      if (checkoutBtn) checkoutBtn.addEventListener('click', doCheckout);
     });
-    var checkoutBtn = drawer.querySelector('#gbCartCheckoutBtn');
-    if (checkoutBtn) checkoutBtn.addEventListener('click', doCheckout);
   }
 
   function doCheckout() {
@@ -164,34 +273,47 @@
     btn.textContent = 'Starting checkout…';
     if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
 
-    fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: cart.map(function (i) {
-          return { series: i.series, denomination: i.denomination, faceValueGB: i.faceValueGB, quantity: i.quantity };
-        }),
-      }),
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.ok && data.url) {
-          try { localStorage.removeItem(CART_KEY); } catch (e) {}
-          window.location.href = data.url;
-          return;
-        }
-        throw new Error(data.error || 'Could not start checkout.');
-      })
-      .catch(function (err) {
+    ensureLock(function (lock) {
+      if (!lock) {
         btn.disabled = false;
         btn.textContent = 'Checkout';
-        if (errorEl) {
-          errorEl.textContent = err.message || 'Could not start checkout. Please try again or request a quote.';
-          errorEl.hidden = false;
-        } else {
-          alert(err.message || 'Could not start checkout.');
-        }
-      });
+        if (errorEl) { errorEl.textContent = 'Could not load current pricing. Please try again.'; errorEl.hidden = false; }
+        return;
+      }
+
+      fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pricingId: lock.pricingId,
+          items: cart.map(function (i) {
+            return { series: i.series, denomination: i.denomination, faceValueGB: i.faceValueGB, quantity: i.quantity };
+          }),
+        }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok && data.url) {
+            try {
+              localStorage.removeItem(CART_KEY);
+              localStorage.removeItem(LOCK_KEY);
+            } catch (e) {}
+            window.location.href = data.url;
+            return;
+          }
+          throw new Error(data.error || 'Could not start checkout.');
+        })
+        .catch(function (err) {
+          btn.disabled = false;
+          btn.textContent = 'Checkout';
+          if (errorEl) {
+            errorEl.textContent = err.message || 'Could not start checkout. Please try again or request a quote.';
+            errorEl.hidden = false;
+          } else {
+            alert(err.message || 'Could not start checkout.');
+          }
+        });
+    });
   }
 
   // ---- Wire up "Add to Cart" buttons already on the page ----
