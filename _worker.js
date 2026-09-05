@@ -88,6 +88,16 @@ export default {
       return json({ ok: false, error: "Method not allowed" }, 405);
     }
 
+    // Legacy URL still picking up search impressions — redirect rather than
+    // let it keep serving duplicate homepage content (Cloudflare Pages'
+    // default SPA-style fallback for any unmatched path, now fixed by
+    // 404.html for everything else). A Pages `_redirects` file can't reach
+    // this for the same reason `_headers` couldn't — this worker intercepts
+    // every request first.
+    if (url.pathname === "/catalog" || url.pathname === "/catalog.html") {
+      return Response.redirect(url.origin + "/#series", 301);
+    }
+
     const assetResponse = await env.ASSETS.fetch(request);
 
     // These two scripts get edited often during active development; force
