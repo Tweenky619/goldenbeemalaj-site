@@ -5,10 +5,11 @@
 // every item in one Stripe Checkout Session.
 //
 // Price lock: like a bullion dealer's quote lock, opening the cart fetches
-// the current per-Goldback rate and holds it for 10 minutes (countdown shown
-// in the drawer). Checkout sends that locked pricingId back to the server,
-// so the customer pays what they were quoted even if the admin rate changes
-// before they finish paying. The lock silently refreshes if it expires.
+// the tiered rate for the cart's total quantity and holds it for 10 minutes
+// (countdown shown in the drawer) — purely a display/UX quote, since the
+// server always recomputes the authoritative price itself at checkout time
+// from the same tiers. The lock silently re-quotes if it expires or the
+// cart's total quantity changes.
 (function () {
   var CART_KEY = 'gbm_cart';
   var LOCK_KEY = 'gbm_price_lock';
@@ -73,23 +74,31 @@
     return Date.now() - lock.lockedAt;
   }
 
-  function isLockValid(lock) {
-    return !!lock && lockAgeMs(lock) < LOCK_DURATION_MS;
+  // Bulk pricing is tiered by total Goldback quantity, so a lock is only
+  // valid for the exact quantity it was quoted for — adding or removing
+  // items re-quotes immediately rather than waiting out the 10 minutes.
+  function isLockValid(lock, totalQty) {
+    return !!lock && lock.qty === totalQty && lockAgeMs(lock) < LOCK_DURATION_MS;
   }
 
-  // Ensures a valid lock exists, fetching a fresh quote if missing/expired,
-  // then calls back with the lock (or null if pricing is unavailable).
-  function ensureLock(callback) {
+  function totalQtyOf(cart) {
+    return cart.reduce(function (sum, item) { return sum + item.faceValueGB * item.quantity; }, 0);
+  }
+
+  // Ensures a valid lock exists for this exact total quantity, fetching a
+  // fresh quote if missing/expired/stale, then calls back with the lock
+  // (or null if pricing is unavailable).
+  function ensureLock(totalQty, callback) {
     var lock = getLock();
-    if (isLockValid(lock)) {
+    if (isLockValid(lock, totalQty)) {
       callback(lock);
       return;
     }
-    fetch('/api/pricing')
+    fetch('/api/pricing?qty=' + encodeURIComponent(totalQty))
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.ok) { callback(null); return; }
-        var fresh = { pricingId: data.pricingId, priceCents: data.pricePerGoldbackCents, lockedAt: Date.now() };
+        var fresh = { qty: totalQty, priceCents: data.pricePerGoldbackCents, lockedAt: Date.now() };
         setLock(fresh);
         callback(fresh);
       })
@@ -171,8 +180,9 @@
 
   function tick() {
     var lock = getLock();
-    if (!isLockValid(lock)) {
-      // Expired mid-session — refresh silently and redraw with the new price.
+    var totalQty = totalQtyOf(getCart());
+    if (!isLockValid(lock, totalQty)) {
+      // Expired (or quantity changed) mid-session — refresh silently and redraw with the new price.
       renderDrawer();
       return;
     }
@@ -214,7 +224,7 @@
       return;
     }
 
-    ensureLock(function (lock) {
+    ensureLock(totalQtyOf(cart), function (lock) {
       if (!lock) {
         html += '<p class="gb-cart-empty">Could not load current pricing. Please try again shortly.</p>';
         drawer.innerHTML = html;
@@ -273,7 +283,7 @@
     btn.textContent = 'Starting checkout…';
     if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
 
-    ensureLock(function (lock) {
+    ensureLock(totalQtyOf(cart), function (lock) {
       if (!lock) {
         btn.disabled = false;
         btn.textContent = 'Checkout';
@@ -285,7 +295,6 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pricingId: lock.pricingId,
           items: cart.map(function (i) {
             return { series: i.series, denomination: i.denomination, faceValueGB: i.faceValueGB, quantity: i.quantity };
           }),

@@ -31,7 +31,7 @@ export default {
     // Public price quote — used to lock in a rate for the 10-minute cart timer
     if (url.pathname === "/api/pricing") {
       if (request.method !== "GET") return json({ ok: false, error: "Method not allowed" }, 405);
-      return handlePublicPricing(env);
+      return handlePublicPricing(env, url);
     }
 
     // Create a Stripe Checkout Session for a denomination purchase
@@ -291,6 +291,23 @@ async function fetchGoldbackRate() {
   }
 }
 
+// The exchange app's bulk pricing tiers — same RateTier table its own
+// calculator uses. Returns the per-Goldback rate in cents for a given total
+// quantity, or null if that app is unreachable (caller should fall back).
+const GOLDBACK_PRICE_API = "https://app.goldenbeemalaj.com/api/goldback-price";
+
+async function fetchTieredPriceCents(totalQty) {
+  try {
+    const res = await fetch(GOLDBACK_PRICE_API + "?qty=" + encodeURIComponent(totalQty));
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.rateCents > 0 ? data.rateCents : null;
+  } catch (err) {
+    console.log("fetchTieredPriceCents error:", err.message);
+    return null;
+  }
+}
+
 // ---- Checkout (Stripe) ----
 
 async function handleCheckout(request, env) {
@@ -325,25 +342,24 @@ async function handleCheckout(request, env) {
     return json({ ok: false, error: "Checkout is temporarily unavailable — please try again shortly or call/email us to order." }, 400);
   }
 
-  // Like a bullion dealer's quote lock: the cart fetches and displays a
-  // price via /api/pricing, with a 10-minute countdown, and passes that
-  // exact pricingId back here so the customer pays what they were quoted —
-  // not whatever the admin-set rate happens to be at the moment they click
-  // Checkout. Falls back to the current rate if no valid lock was sent.
-  let pricing;
-  try {
-    const lockedId = parseInt(data.pricingId, 10);
-    if (lockedId > 0) {
-      pricing = await env.DB.prepare("SELECT id, price_per_goldback_cents FROM pricing WHERE id = ?1").bind(lockedId).first();
+  // Price is authoritative from app.goldenbeemalaj.com's bulk pricing tiers
+  // (same RateTier table the exchange calculator uses), computed fresh here
+  // server-side from the order's total Goldback quantity — never trusted
+  // from the client — so a bigger order really does get the better rate,
+  // and there's one source of truth for pricing across both sites. Falls
+  // back to this site's own flat admin-set rate if that call fails.
+  const totalQty = items.reduce((sum, item) => sum + item.faceValueGB * item.quantity, 0);
+  let priceCents = await fetchTieredPriceCents(totalQty);
+
+  if (!priceCents) {
+    try {
+      const row = await env.DB.prepare("SELECT price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1").first();
+      priceCents = row && row.price_per_goldback_cents;
+    } catch (err) {
+      console.log("fallback pricing lookup failed:", err.message);
     }
-    if (!pricing) {
-      pricing = await env.DB.prepare("SELECT id, price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1").first();
-    }
-  } catch (err) {
-    console.log("checkout pricing lookup failed:", err.message);
-    return json({ ok: false, error: "Could not load current pricing." }, 500);
   }
-  if (!pricing) {
+  if (!priceCents) {
     return json({ ok: false, error: "Checkout is temporarily unavailable — please try again shortly or call/email us to order." }, 400);
   }
 
@@ -352,7 +368,7 @@ async function handleCheckout(request, env) {
     quantity: item.quantity,
     price_data: {
       currency: "usd",
-      unit_amount: Math.round(item.faceValueGB * pricing.price_per_goldback_cents),
+      unit_amount: Math.round(item.faceValueGB * priceCents),
       product_data: {
         name: item.series + " " + item.denomination + " Goldback",
         description: "Real 24-karat gold currency note — " + item.faceValueGB + " GB face value.",
@@ -861,15 +877,23 @@ async function adminUpdateLead(request, env, id) {
   }
 }
 
-// ---- Admin: pricing ----
+// Public price quote for the cart's 10-minute lock display — mirrors
+// handleCheckout's own pricing logic (tiered rate from app.goldenbeemalaj.com
+// by total quantity, falling back to this site's flat admin rate) so the
+// quote shown matches what checkout will actually charge.
+async function handlePublicPricing(env, url) {
+  const qty = parseFloat(url.searchParams.get("qty") || "");
+  const totalQty = qty > 0 ? qty : 1;
 
-async function handlePublicPricing(env) {
+  const tiered = await fetchTieredPriceCents(totalQty);
+  if (tiered) return json({ ok: true, pricePerGoldbackCents: tiered });
+
   try {
     const row = await env.DB.prepare(
-      "SELECT id, price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1"
+      "SELECT price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1"
     ).first();
     if (!row) return json({ ok: false, error: "Pricing not available." });
-    return json({ ok: true, pricingId: row.id, pricePerGoldbackCents: row.price_per_goldback_cents });
+    return json({ ok: true, pricePerGoldbackCents: row.price_per_goldback_cents });
   } catch (err) {
     console.log("handlePublicPricing error:", err.message);
     return json({ ok: false, error: "Pricing not available." });
