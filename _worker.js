@@ -308,7 +308,7 @@ async function handleCheckout(request, env) {
     const series = clean(raw.series, 60);
     const denomination = clean(raw.denomination, 40);
     const faceValueGB = parseFloat(raw.faceValueGB);
-    const quantity = Math.max(1, Math.min(50, parseInt(raw.quantity, 10) || 1));
+    const quantity = Math.max(1, Math.min(999, parseInt(raw.quantity, 10) || 1));
     if (!series || !denomination || !(faceValueGB > 0)) {
       return json({ ok: false, error: "Missing or invalid product details." }, 400);
     }
@@ -343,6 +343,14 @@ async function handleCheckout(request, env) {
     },
   }));
 
+  // Free shipping at $199.99+ subtotal, flat $9.99 below that — decided
+  // server-side from the actual cart total, not left for the customer to pick.
+  const FREE_SHIPPING_THRESHOLD_CENTS = 19999;
+  const FLAT_SHIPPING_CENTS = 999;
+  const subtotalCents = lineItems.reduce((sum, li) => sum + li.price_data.unit_amount * li.quantity, 0);
+  const shippingCents = subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : FLAT_SHIPPING_CENTS;
+  const shippingLabel = shippingCents === 0 ? "Free Shipping" : "Standard Shipping";
+
   try {
     const session = await stripeCreateCheckoutSession(env, {
       mode: "payment",
@@ -350,6 +358,19 @@ async function handleCheckout(request, env) {
       cancel_url: origin + "/order-cancelled",
       line_items: lineItems,
       shipping_address_collection: { allowed_countries: ["US"] },
+      shipping_options: [
+        {
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: { amount: shippingCents, currency: "usd" },
+            display_name: shippingLabel,
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 2 },
+              maximum: { unit: "business_day", value: 6 },
+            },
+          },
+        },
+      ],
       automatic_tax: { enabled: true },
       metadata: {
         // Compact keys (s/d/f/q) to stay well under Stripe's 500-char metadata value limit.

@@ -26,7 +26,7 @@
     var existing = cart.find(function (c) {
       return c.series === item.series && c.denomination === item.denomination;
     });
-    if (existing) existing.quantity = Math.min(50, existing.quantity + item.quantity);
+    if (existing) existing.quantity = Math.min(999, existing.quantity + item.quantity);
     else cart.push(item);
     setCart(cart);
   }
@@ -41,7 +41,7 @@
   function updateQty(index, qty) {
     var cart = getCart();
     if (qty <= 0) cart.splice(index, 1);
-    else cart[index].quantity = Math.min(50, qty);
+    else cart[index].quantity = Math.min(999, qty);
     setCart(cart);
     renderDrawer();
   }
@@ -130,7 +130,7 @@
         return '<div class="gb-cart-item">' +
           '<div class="gb-cart-item-name">' + esc(item.series) + ' ' + item.denomination + '</div>' +
           '<div class="gb-cart-item-controls">' +
-            '<input type="number" class="gb-cart-qty" data-index="' + i + '" value="' + item.quantity + '" min="1" max="50">' +
+            '<input type="number" class="gb-cart-qty" data-index="' + i + '" value="' + item.quantity + '" min="1" max="999">' +
             '<button type="button" class="gb-cart-remove" data-index="' + i + '">Remove</button>' +
           '</div>' +
         '</div>';
@@ -205,7 +205,7 @@
 
     var row = btn.closest('.buy-row');
     var qtyInput = row.querySelector('.buy-qty');
-    var quantity = Math.max(1, Math.min(50, parseInt(qtyInput.value, 10) || 1));
+    var quantity = Math.max(1, Math.min(999, parseInt(qtyInput.value, 10) || 1));
 
     addToCart({
       series: row.dataset.series,
