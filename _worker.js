@@ -82,10 +82,24 @@ export default {
       return json({ ok: false, error: "Method not allowed" }, 405);
     }
 
+    const assetResponse = await env.ASSETS.fetch(request);
+
+    // These two scripts get edited often during active development; force
+    // the browser to revalidate with the server on every load (still fast
+    // via a 304 if unchanged) instead of reusing a stale cached copy for
+    // hours after a deploy. A Pages `_headers` file can't reach this,
+    // since this project's own _worker.js (Advanced Mode) intercepts every
+    // request before Pages' static-file header pipeline would apply it.
+    if (url.pathname === "/checkout.js" || url.pathname === "/ticker.js") {
+      const response = new Response(assetResponse.body, assetResponse);
+      response.headers.set("Cache-Control", "no-store");
+      return response;
+    }
+
     // /admin already resolves to admin.html via Pages' clean-URL asset
     // handling — rewriting to /admin.html here would just bounce back
     // a 308 (that path redirects to the clean URL), looping forever.
-    return env.ASSETS.fetch(request);
+    return assetResponse;
   },
 };
 
