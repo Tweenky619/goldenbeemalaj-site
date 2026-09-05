@@ -281,14 +281,26 @@ async function handleCheckout(request, env) {
     return json({ ok: false, error: "Invalid request." }, 400);
   }
 
-  const series = clean(data.series, 60);
-  const denomination = clean(data.denomination, 40);
-  const faceValueGB = parseFloat(data.faceValueGB);
-  const quantity = Math.max(1, Math.min(50, parseInt(data.quantity, 10) || 1));
-
-  if (!series || !denomination || !(faceValueGB > 0)) {
-    return json({ ok: false, error: "Missing or invalid product details." }, 400);
+  const rawItems = Array.isArray(data.items) ? data.items : null;
+  if (!rawItems || !rawItems.length) {
+    return json({ ok: false, error: "Your cart is empty." }, 400);
   }
+  if (rawItems.length > 10) {
+    return json({ ok: false, error: "Please check out in batches of 10 items or fewer." }, 400);
+  }
+
+  const items = [];
+  for (const raw of rawItems) {
+    const series = clean(raw.series, 60);
+    const denomination = clean(raw.denomination, 40);
+    const faceValueGB = parseFloat(raw.faceValueGB);
+    const quantity = Math.max(1, Math.min(50, parseInt(raw.quantity, 10) || 1));
+    if (!series || !denomination || !(faceValueGB > 0)) {
+      return json({ ok: false, error: "Missing or invalid product details." }, 400);
+    }
+    items.push({ series, denomination, faceValueGB, quantity });
+  }
+
   if (!env.STRIPE_SECRET_KEY) {
     return json({ ok: false, error: "Online purchase isn't turned on yet — please request a quote instead." }, 400);
   }
@@ -304,34 +316,30 @@ async function handleCheckout(request, env) {
     return json({ ok: false, error: "Online purchase isn't turned on yet — please request a quote instead." }, 400);
   }
 
-  const unitAmountCents = Math.round(faceValueGB * pricing.price_per_goldback_cents);
   const origin = new URL(request.url).origin;
+  const lineItems = items.map((item) => ({
+    quantity: item.quantity,
+    price_data: {
+      currency: "usd",
+      unit_amount: Math.round(item.faceValueGB * pricing.price_per_goldback_cents),
+      product_data: {
+        name: item.series + " " + item.denomination + " Goldback",
+        description: "Real 24-karat gold currency note — " + item.faceValueGB + " GB face value.",
+      },
+    },
+  }));
 
   try {
     const session = await stripeCreateCheckoutSession(env, {
       mode: "payment",
       success_url: origin + "/order-confirmation?session_id={CHECKOUT_SESSION_ID}",
       cancel_url: origin + "/order-cancelled",
-      line_items: [
-        {
-          quantity: quantity,
-          price_data: {
-            currency: "usd",
-            unit_amount: unitAmountCents,
-            product_data: {
-              name: series + " " + denomination + " Goldback",
-              description: "Real 24-karat gold currency note — " + faceValueGB + " GB face value.",
-            },
-          },
-        },
-      ],
+      line_items: lineItems,
       shipping_address_collection: { allowed_countries: ["US"] },
       automatic_tax: { enabled: true },
       metadata: {
-        series: series,
-        denomination: denomination,
-        face_value_gb: String(faceValueGB),
-        quantity: String(quantity),
+        // Compact keys (s/d/f/q) to stay well under Stripe's 500-char metadata value limit.
+        items: JSON.stringify(items.map((i) => ({ s: i.series, d: i.denomination, f: i.faceValueGB, q: i.quantity }))),
       },
     });
     return json({ ok: true, url: session.url });
@@ -362,38 +370,58 @@ async function handleStripeWebhook(request, env, ctx) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const md = session.metadata || {};
     const details = session.customer_details || {};
     const shipping = session.shipping_details || details || {};
 
+    let items = [];
     try {
-      await env.DB.prepare(
-        "INSERT INTO orders (stripe_session_id, series, denomination, face_value_gb, quantity, amount_cents, customer_email, customer_name, shipping_address, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'paid')"
-      )
-        .bind(
-          session.id,
-          md.series || "",
-          md.denomination || "",
-          parseFloat(md.face_value_gb) || 0,
-          parseInt(md.quantity, 10) || 1,
-          session.amount_total || 0,
-          details.email || null,
-          details.name || null,
-          JSON.stringify(shipping)
-        )
-        .run();
-      ctx.waitUntil(notifyOrder(env, session, md));
+      items = JSON.parse((session.metadata || {}).items || "[]");
     } catch (err) {
-      // stripe_session_id is UNIQUE — a duplicate insert means Stripe
-      // already delivered this event once (it retries on timeout).
-      console.log("order insert (likely duplicate delivery):", err.message);
+      console.log("could not parse order metadata:", err.message);
+    }
+
+    try {
+      // One row per line item, all sharing stripe_session_id (not unique —
+      // a cart order is multiple rows). Check first so a Stripe webhook
+      // retry doesn't insert the same order twice.
+      const existing = await env.DB.prepare("SELECT COUNT(*) AS n FROM orders WHERE stripe_session_id = ?1")
+        .bind(session.id)
+        .first();
+
+      if (existing && existing.n > 0) {
+        console.log("order already recorded for session " + session.id + " — skipping duplicate webhook delivery");
+      } else if (items.length) {
+        const lineItems = await stripeGetLineItems(env, session.id);
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          const li = lineItems[i] || {};
+          await env.DB.prepare(
+            "INSERT INTO orders (stripe_session_id, series, denomination, face_value_gb, quantity, amount_cents, customer_email, customer_name, shipping_address, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'paid')"
+          )
+            .bind(
+              session.id,
+              it.s || "",
+              it.d || "",
+              parseFloat(it.f) || 0,
+              parseInt(it.q, 10) || 1,
+              li.amount_total || 0,
+              details.email || null,
+              details.name || null,
+              JSON.stringify(shipping)
+            )
+            .run();
+        }
+        ctx.waitUntil(notifyOrder(env, session, items, lineItems));
+      }
+    } catch (err) {
+      console.log("order insert failed:", err.message);
     }
   }
 
   return json({ ok: true });
 }
 
-async function notifyOrder(env, session, md) {
+async function notifyOrder(env, session, items, lineItems) {
   if (!env.EMAIL_API_TOKEN || !env.CF_ACCOUNT_ID) {
     console.log("Order email notification skipped: EMAIL_API_TOKEN / CF_ACCOUNT_ID not configured.");
     return;
@@ -407,13 +435,21 @@ async function notifyOrder(env, session, md) {
     : "(no shipping address captured)";
   const amount = ((session.amount_total || 0) / 100).toFixed(2);
 
+  const itemLines = items.map((it, i) => {
+    const li = lineItems[i] || {};
+    const liAmount = ((li.amount_total || 0) / 100).toFixed(2);
+    return "  - " + (it.s || "") + " " + (it.d || "") + " ×" + (it.q || 1) + " — $" + liAmount;
+  });
+
+  const subjectSummary = items.map((it) => (it.s || "") + " " + (it.d || "") + " ×" + (it.q || 1)).join(", ");
+
   const text = [
     "New paid order from goldenbeemalaj.com",
     "",
-    "Series:       " + (md.series || "—"),
-    "Denomination: " + (md.denomination || "—"),
-    "Quantity:     " + (md.quantity || "—"),
-    "Amount paid:  $" + amount,
+    "Items:",
+    ...itemLines,
+    "",
+    "Total paid:   $" + amount,
     "Customer:     " + (details.name || "—") + " <" + (details.email || "—") + ">",
     "Ship to:      " + addrText,
     "",
@@ -429,8 +465,7 @@ async function notifyOrder(env, session, md) {
         body: JSON.stringify({
           to: NOTIFY_TO,
           from: NOTIFY_FROM,
-          subject:
-            "New order: " + (md.series || "") + " " + (md.denomination || "") + " ×" + (md.quantity || 1) + " — $" + amount,
+          subject: "New order: " + subjectSummary + " — $" + amount,
           text: text,
         }),
       }
@@ -460,6 +495,15 @@ async function stripeCreateCheckoutSession(env, params) {
   const data = await res.json();
   if (!res.ok) throw new Error((data.error && data.error.message) || "Stripe error");
   return data;
+}
+
+async function stripeGetLineItems(env, sessionId) {
+  const res = await fetch("https://api.stripe.com/v1/checkout/sessions/" + sessionId + "/line_items?limit=100", {
+    headers: { Authorization: "Bearer " + env.STRIPE_SECRET_KEY.replace(/\s+/g, "") },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data.error && data.error.message) || "Stripe error");
+  return data.data || [];
 }
 
 // Stripe's REST API expects PHP-style bracket-indexed form encoding for

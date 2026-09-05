@@ -8,9 +8,11 @@ CREATE TABLE IF NOT EXISTS pricing (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- stripe_session_id is intentionally NOT unique: a cart checkout inserts
+-- one row per line item, all sharing the same session id.
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  stripe_session_id TEXT UNIQUE NOT NULL,
+  stripe_session_id TEXT NOT NULL,
   series TEXT NOT NULL,
   denomination TEXT NOT NULL,
   face_value_gb REAL NOT NULL,
@@ -23,4 +25,5 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE INDEX IF NOT EXISTS idx_orders_session ON orders(stripe_session_id);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
