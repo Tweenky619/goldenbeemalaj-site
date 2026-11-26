@@ -322,8 +322,8 @@ async function fetchTieredPriceCents(totalQty) {
 // Pricing rule (owner's instruction):
 // - Retail is a $5 step above Goldback Inc.'s official daily rate: $10 while the
 //   daily rate is $10 or less, $15 above $10, $20 above $15, and so on.
-// - Tiers close part of the gap between that step and the daily rate:
-//   1-24 GB full step, 25-49 85%, 50-99 70%, 100+ 55%.
+// - Four tiers, each about $500 worth of Goldbacks at the daily rate, close part of
+//   the gap between that step and the daily rate: full step, 85%, 70%, 55%.
 // - $2,000 or more worth of Goldbacks at the daily rate (before tax) gets the daily rate.
 // - Below that, no order ever reaches $2,000 without the daily rate (cap just under $2,000),
 //   and nothing is ever priced below the daily rate.
@@ -332,7 +332,9 @@ function ladderCents(totalQty, dailyCents) {
   const unlockQty = Math.ceil(DAILY_RATE_THRESHOLD_CENTS / dailyCents);
   if (totalQty >= unlockQty) return dailyCents;
   const stepCents = Math.max(1000, Math.ceil(dailyCents / 500) * 500);
-  const f = totalQty < 25 ? 1 : totalQty < 50 ? 0.85 : totalQty < 100 ? 0.70 : 0.55;
+  // Four tiers, each about $500 worth of Goldbacks at the daily rate
+  const band = Math.min(3, Math.floor((totalQty * dailyCents) / 50000));
+  const f = [1, 0.85, 0.70, 0.55][band];
   let p = Math.round(dailyCents + f * (stepCents - dailyCents));
   const capCents = Math.min(unlockQty * dailyCents, DAILY_RATE_THRESHOLD_CENTS - 1); // stays under $2,000
   if (totalQty * p > capCents) p = Math.floor(capCents / totalQty);
