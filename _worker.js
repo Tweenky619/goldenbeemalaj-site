@@ -318,6 +318,32 @@ async function fetchTieredPriceCents(totalQty) {
   }
 }
 
+
+// Pricing rule (owner's instruction):
+// - Retail is a $5 step above Goldback Inc.'s official daily rate: $10 while the
+//   daily rate is $10 or less, $15 above $10, $20 above $15, and so on.
+// - Tiers close part of the gap between that step and the daily rate:
+//   1-24 GB full step, 25-49 85%, 50-99 70%, 100+ 55%.
+// - $2,000 or more worth of Goldbacks at the daily rate (before tax) gets the daily rate.
+// - Below that, no order ever reaches $2,000 without the daily rate (cap just under $2,000),
+//   and nothing is ever priced below the daily rate.
+const DAILY_RATE_THRESHOLD_CENTS = 200000;
+function ladderCents(totalQty, dailyCents) {
+  const unlockQty = Math.ceil(DAILY_RATE_THRESHOLD_CENTS / dailyCents);
+  if (totalQty >= unlockQty) return dailyCents;
+  const stepCents = Math.max(1000, Math.ceil(dailyCents / 500) * 500);
+  const f = totalQty < 25 ? 1 : totalQty < 50 ? 0.85 : totalQty < 100 ? 0.70 : 0.55;
+  let p = Math.round(dailyCents + f * (stepCents - dailyCents));
+  const capCents = Math.min(unlockQty * dailyCents, DAILY_RATE_THRESHOLD_CENTS - 1); // stays under $2,000
+  if (totalQty * p > capCents) p = Math.floor(capCents / totalQty);
+  return Math.max(p, dailyCents);
+}
+async function applyDailyRateRule(priceCents, totalQty) {
+  const daily = await fetchGoldbackRate();
+  if (!daily) return priceCents; // daily rate unreachable: keep the table price
+  return ladderCents(totalQty, Math.round(daily * 100));
+}
+
 // ---- Checkout (Stripe) ----
 
 async function handleCheckout(request, env) {
@@ -369,6 +395,7 @@ async function handleCheckout(request, env) {
       console.log("fallback pricing lookup failed:", err.message);
     }
   }
+  if (priceCents) priceCents = await applyDailyRateRule(priceCents, totalQty);
   if (!priceCents) {
     return json({ ok: false, error: "Checkout is temporarily unavailable — please try again shortly or call/email us to order." }, 400);
   }
@@ -381,7 +408,7 @@ async function handleCheckout(request, env) {
       unit_amount: Math.round(item.faceValueGB * priceCents),
       product_data: {
         name: item.series + " " + item.denomination + " Goldback",
-        description: "Real 24-karat gold currency note — " + item.faceValueGB + " GB face value.",
+        description: "Real 24-karat gold Goldback — " + item.faceValueGB + " GB.",
       },
     },
   }));
@@ -896,14 +923,17 @@ async function handlePublicPricing(env, url) {
   const totalQty = qty > 0 ? qty : 1;
 
   const tiered = await fetchTieredPriceCents(totalQty);
-  if (tiered) return json({ ok: true, pricePerGoldbackCents: tiered });
+  const dailyRate = await fetchGoldbackRate();
+  const dailyCents = dailyRate ? Math.round(dailyRate * 100) : null;
+  const unlockQty = dailyCents ? Math.ceil(DAILY_RATE_THRESHOLD_CENTS / dailyCents) : null;
+  if (tiered) return json({ ok: true, pricePerGoldbackCents: await applyDailyRateRule(tiered, totalQty), dailyCents, unlockQty });
 
   try {
     const row = await env.DB.prepare(
       "SELECT price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1"
     ).first();
     if (!row) return json({ ok: false, error: "Pricing not available." });
-    return json({ ok: true, pricePerGoldbackCents: row.price_per_goldback_cents });
+    return json({ ok: true, pricePerGoldbackCents: await applyDailyRateRule(row.price_per_goldback_cents, totalQty), dailyCents, unlockQty });
   } catch (err) {
     console.log("handlePublicPricing error:", err.message);
     return json({ ok: false, error: "Pricing not available." });

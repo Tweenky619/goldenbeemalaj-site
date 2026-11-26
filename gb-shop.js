@@ -98,7 +98,7 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.ok) { callback(null); return; }
-        var fresh = { qty: totalQty, priceCents: data.pricePerGoldbackCents, lockedAt: Date.now() };
+        var fresh = { qty: totalQty, priceCents: data.pricePerGoldbackCents, dailyCents: data.dailyCents || null, lockedAt: Date.now() };
         setLock(fresh);
         callback(fresh);
       })
@@ -121,6 +121,8 @@
     '.gb-cart-lock { margin: 0.9rem 1.4rem 0; background: #fff; border: 1px solid #e8dfc8; border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.82rem; color: #6b6252; display: flex; align-items: center; justify-content: space-between; }',
     '.gb-cart-lock-timer { font-weight: bold; color: #DA9900; font-variant-numeric: tabular-nums; }',
     '.gb-cart-items { padding: 0.6rem 1.4rem; }',
+    '.gb-cart-nudge { margin: 0.4rem 1.4rem 0.8rem; background: #fff8e1; border: 1px solid #DA9900; border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.85rem; color: #2b2417; line-height: 1.4; }',
+    '.gb-cart-nudge b { color: #a87400; }',
     '.gb-cart-item { padding: 0.8rem 0; border-bottom: 1px solid #e8dfc8; }',
     '.gb-cart-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }',
     '.gb-cart-item-name { font-weight: bold; font-size: 0.95rem; }',
@@ -252,6 +254,20 @@
       }).join('') + '</div>';
 
       html += '<div class="gb-cart-subtotal"><span>Subtotal</span><span>' + fmtUsd(subtotalCents) + '</span></div>';
+      // Nudge toward $2,000+ orders, which get Goldback's daily rate
+      var tq = totalQtyOf(cart), dc = lock.dailyCents;
+      if (dc) {
+        var U = Math.ceil(200000 / dc);
+        if (tq < U && subtotalCents >= 50000) {
+          var need = U - tq, nt = U * dc;
+          var capped = subtotalCents >= 199999 - tq;
+          html += '<div class="gb-cart-nudge"><b>Unlock the daily rate:</b> ' + (capped
+            ? 'you\'re at the $2,000 line. Add ' + need + ' more Goldback' + (need === 1 ? '' : 's') + ' (' + U + ' total for ' + fmtUsd(nt) + ') and your whole order drops to ' + fmtUsd(dc) + ' each.'
+            : 'add ' + need + ' more Goldback' + (need === 1 ? '' : 's') + ' and your whole order drops to ' + fmtUsd(dc) + ' each: ' + U + ' Goldbacks for ' + fmtUsd(nt) + (nt < subtotalCents ? ', less than you\'d pay now.' : '.')) + '</div>';
+        } else if (tq >= U) {
+          html += '<div class="gb-cart-nudge"><b>Daily rate unlocked:</b> ' + fmtUsd(dc) + ' per Goldback on orders of $2,000 or more.</div>';
+        }
+      }
       html += '<p class="gb-cart-note">Plus shipping and any applicable sales tax, calculated at checkout.</p>';
       html += '<div class="gb-cart-error" id="gbCartError" hidden></div>';
       html += '<button type="button" class="gb-cart-checkout" id="gbCartCheckoutBtn">Checkout</button>';
