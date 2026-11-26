@@ -78,7 +78,9 @@
   // valid for the exact quantity it was quoted for — adding or removing
   // items re-quotes immediately rather than waiting out the 10 minutes.
   function isLockValid(lock, totalQty) {
-    return !!lock && lock.qty === totalQty && lockAgeMs(lock) < LOCK_DURATION_MS;
+    if (!lock || lock.qty !== totalQty) return false;
+    if (lock.until) return Date.now() < lock.until;
+    return lockAgeMs(lock) < LOCK_DURATION_MS;
   }
 
   function totalQtyOf(cart) {
@@ -98,7 +100,7 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.ok) { callback(null); return; }
-        var fresh = { qty: totalQty, priceCents: data.pricePerGoldbackCents, dailyCents: data.dailyCents || null, lockedAt: Date.now() };
+        var fresh = { qty: totalQty, priceCents: data.pricePerGoldbackCents, dailyCents: data.dailyCents || null, until: data.lockUntil || null, lockedAt: Date.now() };
         setLock(fresh);
         callback(fresh);
       })
@@ -119,7 +121,7 @@
     '.gb-cart-close { background: none; border: none; font-size: 1.6rem; line-height: 1; cursor: pointer; color: #6b6252; }',
     '.gb-cart-empty { padding: 2rem 1.4rem; color: #6b6252; font-size: 0.95rem; }',
     '.gb-cart-lock { margin: 0.9rem 1.4rem 0; background: #fff; border: 1px solid #e8dfc8; border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.82rem; color: #6b6252; display: flex; align-items: center; justify-content: space-between; }',
-    '.gb-cart-lock-timer { font-weight: bold; color: #DA9900; font-variant-numeric: tabular-nums; }',
+    '.gb-cart-lock-timer { font-weight: bold; color: #DA9900; font-variant-numeric: tabular-nums; white-space: nowrap; margin-left: 0.6rem; }',
     '.gb-cart-items { padding: 0.6rem 1.4rem; }',
     '.gb-cart-nudge { margin: 0.4rem 1.4rem 0.8rem; background: #fff8e1; border: 1px solid #DA9900; border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.85rem; color: #2b2417; line-height: 1.4; }',
     '.gb-cart-nudge b { color: #a87400; }',
@@ -189,9 +191,17 @@
       return;
     }
     var el = document.getElementById('gbCartLockTimer');
-    if (el) el.textContent = formatCountdown(LOCK_DURATION_MS - lockAgeMs(lock));
+    if (el) el.textContent = lock.until ? formatUntil(lock.until) : formatCountdown(LOCK_DURATION_MS - lockAgeMs(lock));
   }
 
+  function formatUntil(until) {
+    var ms = until - Date.now(), h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+    return (h > 0 ? h + 'h ' : '') + m + 'm left';
+  }
+  function untilLabel(until) {
+    // Shown in the shopper's own time zone (Goldback's daily update is 9 AM Pacific Time)
+    try { return new Date(until).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }); } catch (e) { return '9 AM Pacific Time'; }
+  }
   function formatCountdown(ms) {
     var totalSec = Math.max(0, Math.ceil(ms / 1000));
     var m = Math.floor(totalSec / 60);
@@ -235,8 +245,9 @@
       }
 
       var subtotalCents = 0;
-      html += '<div class="gb-cart-lock">Price locked <span class="gb-cart-lock-timer" id="gbCartLockTimer">' +
-        formatCountdown(LOCK_DURATION_MS - lockAgeMs(lock)) + '</span></div>';
+      html += lock.until
+        ? '<div class="gb-cart-lock"><span>Today\'s price, good until ' + untilLabel(lock.until) + '. After that it updates with gold, up or down.</span> <span class="gb-cart-lock-timer" id="gbCartLockTimer">' + formatUntil(lock.until) + '</span></div>'
+        : '<div class="gb-cart-lock">Price locked <span class="gb-cart-lock-timer" id="gbCartLockTimer">' + formatCountdown(LOCK_DURATION_MS - lockAgeMs(lock)) + '</span></div>';
 
       html += '<div class="gb-cart-items">' + cart.map(function (item, i) {
         var lineCents = Math.round(item.faceValueGB * lock.priceCents) * item.quantity;

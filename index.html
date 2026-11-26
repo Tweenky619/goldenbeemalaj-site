@@ -311,7 +311,7 @@
     <p class="eyebrow">San Diego's Official Goldback Distributor</p>
     <h1>Real Gold You Can Save and Spend</h1>
     <p class="lead">Goldbacks are real 24K gold in amounts small enough to save a little at a time or spend at local businesses. We're a family business in San Diego: exchanges by appointment for local pickup, or shipped nationwide.</p>
-    <div class="rate-band gbc-hide" id="gbcRate" aria-live="polite"><small>Today's rate</small><b id="gbcRateVal"></b><p>per Goldback &middot; moves with the price of gold</p></div>
+    <div class="rate-band gbc-hide" id="gbcRate" aria-live="polite"><small>Today's rate</small><b id="gbcRateVal"></b><p>per Goldback &middot; good until <span id="gbcUntil">9 AM Pacific Time</span> tomorrow, then it updates with gold</p></div>
     <div class="cta-row">
       <a class="btn btn-gold" href="#coming-soon">See New Releases</a>
       <a class="btn btn-outline" href="/#lead">Get a Quote</a>
@@ -1076,6 +1076,7 @@
   try { var qi = new URLSearchParams(location.search).get("interest"); if (qi) pick(qi.slice(0, 120)); } catch (e) {}
   // Today's rate = the same price the checkout uses
   fetch("/api/pricing?qty=1").then(function(r){ return r.json(); }).then(function(j){
+    if (j && j.lockUntil) { try { var u = new Date(j.lockUntil); document.getElementById("gbcUntil").textContent = u.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", timeZoneName: "short" }) + (/Los_Angeles|Vancouver|Tijuana/.test(Intl.DateTimeFormat().resolvedOptions().timeZone) ? "" : " (9 AM Pacific Time)"); } catch (e) {} }
     if (j && j.ok && j.pricePerGoldbackCents > 0){ document.getElementById("gbcRateVal").textContent = "$" + (j.pricePerGoldbackCents / 100).toFixed(2); show("gbcRate"); }
   }).catch(function(){});
   fetch("https://goldback.goldenbeemalaj.com/api/gb-public").then(function(r){ return r.json(); }).then(function(d){

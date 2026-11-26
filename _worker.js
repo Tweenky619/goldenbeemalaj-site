@@ -286,6 +286,15 @@ async function handlePartialLead(request, env, ctx) {
   return json({ ok: true });
 }
 
+async function fetchGoldbackRateInfo() {
+  try {
+    const res = await fetch(GOLDBACK_RATE_API, { headers: { "Content-Type": "application/json", "Ocp-Apim-Subscription-Key": GOLDBACK_RATE_API_KEY } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const rate = data.success && data.quotes && parseFloat(data.quotes.USDUSD);
+    return rate > 0 ? { rate, ts: Number(data.timestamp) || 0 } : null;
+  } catch (err) { return null; }
+}
 async function fetchGoldbackRate() {
   try {
     const res = await fetch(GOLDBACK_RATE_API, {
@@ -340,8 +349,42 @@ function ladderCents(totalQty, dailyCents) {
   if (totalQty * p > capCents) p = Math.floor(capCents / totalQty);
   return Math.max(p, dailyCents);
 }
-async function applyDailyRateRule(priceCents, totalQty) {
-  const daily = await fetchGoldbackRate();
+// Daily price period: Goldback publishes its rate at 10 AM MST (9 AM Pacific).
+// Our prices hold from 9 AM Pacific until 9 AM Pacific the next day, on Goldback's schedule.
+function pricePeriod(now) {
+  const t = now || Date.now();
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(t)).map((p) => [p.type, p.value]));
+  const mins = Number(parts.hour) * 60 + Number(parts.minute);
+  const offsetMs = new Date(t).getTime() - Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, new Date(t).getUTCSeconds());
+  let start = Date.UTC(+parts.year, +parts.month - 1, +parts.day, 9, 0) + offsetMs;
+  if (mins < 540) start -= 864e5;
+  const key = new Date(start - offsetMs).toISOString().slice(0, 10);
+  return { key, startsAt: start, endsAt: start + 864e5 };
+}
+async function getLockedDailyRate(env) {
+  const period = pricePeriod();
+  try {
+    if (env && env.DB) {
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS rate_snapshots (period TEXT PRIMARY KEY, cents INTEGER NOT NULL, fetched INTEGER NOT NULL)").run();
+      const row = await env.DB.prepare("SELECT cents FROM rate_snapshots WHERE period = ?1").bind(period.key).first();
+      if (row && row.cents > 0) return row.cents / 100;
+    }
+  } catch (e) {}
+  const info = await fetchGoldbackRateInfo();
+  if (!info) return null;
+  const live = info.rate;
+  // Only lock the day's price once Goldback has published today's rate
+  const fresh = info.ts ? info.ts * 1000 >= period.startsAt - 120000 : Date.now() >= period.startsAt + 15 * 60000;
+  if (!fresh) return live;
+  try {
+    if (env && env.DB) await env.DB.prepare("INSERT OR IGNORE INTO rate_snapshots (period, cents, fetched) VALUES (?1, ?2, ?3)").bind(period.key, Math.round(live * 100), Date.now()).run();
+    const row = env && env.DB ? await env.DB.prepare("SELECT cents FROM rate_snapshots WHERE period = ?1").bind(period.key).first() : null;
+    if (row && row.cents > 0) return row.cents / 100;
+  } catch (e) {}
+  return live;
+}
+async function applyDailyRateRule(priceCents, totalQty, env) {
+  const daily = await getLockedDailyRate(env);
   if (!daily) return priceCents; // daily rate unreachable: keep the table price
   return ladderCents(totalQty, Math.round(daily * 100));
 }
@@ -397,7 +440,7 @@ async function handleCheckout(request, env) {
       console.log("fallback pricing lookup failed:", err.message);
     }
   }
-  if (priceCents) priceCents = await applyDailyRateRule(priceCents, totalQty);
+  if (priceCents) priceCents = await applyDailyRateRule(priceCents, totalQty, env);
   if (!priceCents) {
     return json({ ok: false, error: "Checkout is temporarily unavailable — please try again shortly or call/email us to order." }, 400);
   }
@@ -925,17 +968,18 @@ async function handlePublicPricing(env, url) {
   const totalQty = qty > 0 ? qty : 1;
 
   const tiered = await fetchTieredPriceCents(totalQty);
-  const dailyRate = await fetchGoldbackRate();
+  const dailyRate = await getLockedDailyRate(env);
+  const lockUntil = pricePeriod().endsAt;
   const dailyCents = dailyRate ? Math.round(dailyRate * 100) : null;
   const unlockQty = dailyCents ? Math.ceil(DAILY_RATE_THRESHOLD_CENTS / dailyCents) : null;
-  if (tiered) return json({ ok: true, pricePerGoldbackCents: await applyDailyRateRule(tiered, totalQty), dailyCents, unlockQty });
+  if (tiered) return json({ ok: true, pricePerGoldbackCents: await applyDailyRateRule(tiered, totalQty, env), dailyCents, unlockQty, lockUntil });
 
   try {
     const row = await env.DB.prepare(
       "SELECT price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1"
     ).first();
     if (!row) return json({ ok: false, error: "Pricing not available." });
-    return json({ ok: true, pricePerGoldbackCents: await applyDailyRateRule(row.price_per_goldback_cents, totalQty), dailyCents, unlockQty });
+    return json({ ok: true, pricePerGoldbackCents: await applyDailyRateRule(row.price_per_goldback_cents, totalQty, env), dailyCents, unlockQty, lockUntil });
   } catch (err) {
     console.log("handlePublicPricing error:", err.message);
     return json({ ok: false, error: "Pricing not available." });
