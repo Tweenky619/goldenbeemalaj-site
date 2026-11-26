@@ -238,6 +238,58 @@
   .gbc-review { background: var(--dark); color: var(--cream); text-align: center; }
   .gbc-review .section-title { color: var(--gold-light); }
   .gbc-stars { color: var(--gold-light); font-size: 1.5rem; letter-spacing: 0.2em; }
+
+  /* ===== 2026 look: dark and gold, matching the Goldbacks app ===== */
+  :root { --ink: #15110a; --ink-2: #1e180d; --panel: #241d10; --line: rgba(218,153,0,.22); --soft: #cfc3a6; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--ink); color: #f1e8d2; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  h1, h2, .section-title { font-family: Georgia, 'Times New Roman', serif; }
+  header { background: rgba(21,17,10,.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  nav { display: flex; gap: 1.3rem; overflow-x: auto; scrollbar-width: none; } nav::-webkit-scrollbar { display: none; }
+  nav a { margin-left: 0; white-space: nowrap; font-size: .95rem; color: #e9dfc6; }
+  section { padding: 4.5rem 6%; }
+  section:nth-of-type(even) { background: var(--ink-2); }
+  section:nth-of-type(odd) { background: var(--ink); }
+  .section-title { color: var(--gold-light); font-size: 2.1rem; letter-spacing: .01em; }
+  .section-sub { color: var(--soft); }
+  .gold-rule { background: linear-gradient(90deg, transparent, var(--gold), transparent); width: 120px; height: 1px; }
+  .hero { background: radial-gradient(1200px 500px at 80% -10%, rgba(218,153,0,.22), transparent 60%), var(--ink) !important; padding: 5rem 6% 4.5rem; }
+  .hero .eyebrow { font-size: .8rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); margin-bottom: .9rem; font-weight: 700; }
+  .hero h1 { font-size: 3.2rem; line-height: 1.05; margin-bottom: 1.1rem; }
+  .hero p.lead { color: #e2d8bf; max-width: 560px; }
+  .hero .badge { width: 170px; margin: 1.8rem 0 0; opacity: .9; }
+  .hero-img img { border-radius: 16px; border: 1px solid var(--line); }
+  .rate-band { display: inline-block; text-align: left; background: rgba(218,153,0,.1); border: 1px solid var(--gold); border-radius: 14px; padding: .7rem 1.1rem; margin: 0 0 1.4rem; }
+  .rate-band.gbc-hide { display: none; }
+  .rate-band b { font-size: 2rem; display: inline; margin-right: .4rem; }
+  .rate-band p { display: inline; }
+  .rate-band small { display: block; }
+  .btn { border-radius: 999px; padding: .85rem 1.5rem; }
+  .btn-outline { color: var(--gold-light); }
+  .what-card, .app-callout, .series-card, .coming-soon-card, .gbc-card, .gbc-vid { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; color: #f1e8d2; }
+  .what-card p, .app-callout p, .series-card p, .coming-soon-card p, .gbc-card p { color: var(--soft); }
+  .series-card h3, .coming-soon-card h3, .gbc-card h3, .gbc-vid p { color: #fff6e0; }
+  .series-card:hover, .coming-soon-card:hover { border-color: var(--gold); box-shadow: 0 12px 34px rgba(0,0,0,.45); transform: translateY(-3px); }
+  .coming-soon-card { border: 1px solid var(--gold); transition: transform .15s, box-shadow .15s; }
+  .coming-soon-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); max-width: 1100px; }
+  .coming-soon-card img, .coming-soon-card .art-ph { height: 200px; }
+  .coming-soon-card .art-ph { width: calc(100% + 2.4rem); margin: -1.6rem -1.2rem 1rem; border-radius: 0; }
+  .coming-soon-card .release-badge { background: var(--gold); color: var(--ink); }
+  .series-card .art-ph { height: 190px; border-radius: 0; }
+  .art-ph { display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at 30% 20%, #4a3810, #120f0b 70%); color: var(--gold-light); text-align: center; }
+  .art-ph b { font-family: Georgia, serif; font-size: 1.7rem; } .art-ph span { font-size: .8rem; color: var(--soft); margin-top: .3rem; }
+  .gbc-date b { color: #fff6e0; }
+  .about-inner p { color: #e2d8bf; }
+  .gold-chart-card { background: var(--panel); }
+  .gbc-review, .contact { background: radial-gradient(900px 400px at 50% 0%, rgba(218,153,0,.14), transparent 70%), var(--ink) !important; }
+  footer { background: #0e0b07; border-top: 1px solid var(--line); }
+  img[src*="Horizontal-Black"] { filter: invert(1) hue-rotate(180deg); }
+  @media (max-width: 800px) {
+    header { flex-wrap: nowrap; gap: .8rem; } header .logo span { display: none; }
+    nav { flex: 1; } nav a { font-size: .9rem; }
+    .hero { grid-template-columns: 1fr; padding: 3rem 6%; } .hero h1 { font-size: 2.3rem; }
+    .section-title { font-size: 1.7rem; } section { padding: 3.2rem 6%; }
+  }
 </style>
 <script defer src="/ticker.js"></script>
 </head>
@@ -246,29 +298,156 @@
 <header>
   <a class="logo" href="#"><img src="images/brand/goldenbee-malaj-logo.jpg" alt="Golden Bee MALAJ Jewelry logo">Goldenbee <span>MALAJ Jewelry</span></a>
   <nav>
-    <a href="#goldbacks">Goldbacks</a>
-    <a href="#series">Series</a>
     <a href="#coming-soon">New Releases</a>
-    <a href="#series">Catalog</a>
+    <a href="#series">Series</a>
     <a href="#order">How to Order</a>
-    <a href="#about">About</a>
+    <a href="#goldbacks">What's a Goldback</a>
     <a href="#contact">Contact</a>
   </nav>
 </header>
 
 <section class="hero">
   <div>
-    <img class="badge" src="images/brand/Goldback_OfficialDistributor-Gold&amp;White.png" alt="Official Goldback Distributor badge">
-    <h1>The Trustworthy, Spendable Real Gold — Exchange Your Dollars in San Diego</h1>
-    <p class="lead">Goldbacks are real 24K gold you can protect, verify, and spend. Goldenbee MALAJ Jewelry LLC is San Diego's Official Authorized Distributor for Goldback Inc. We're a service-area business with no storefront — every exchange is arranged by appointment for local pickup, or shipped nationwide.</p>
+    <p class="eyebrow">San Diego's Official Goldback Distributor</p>
+    <h1>Real Gold You Can Save and Spend</h1>
+    <p class="lead">Goldbacks are real 24K gold in amounts small enough to save a little at a time or spend at local businesses. We're a family business in San Diego: exchanges by appointment for local pickup, or shipped nationwide.</p>
+    <div class="rate-band gbc-hide" id="gbcRate" aria-live="polite"><small>Today's rate</small><b id="gbcRateVal"></b><p>per Goldback &middot; moves with the price of gold</p></div>
     <div class="cta-row">
-      <a class="btn btn-gold" href="/#lead">Get a Quote</a>
+      <a class="btn btn-gold" href="#coming-soon">See New Releases</a>
+      <a class="btn btn-outline" href="/#lead">Get a Quote</a>
       <a class="btn btn-outline" href="tel:+16195048977">Call (619) 504-8977</a>
-      <a class="btn btn-outline" href="#order">How to Order</a>
     </div>
+    <img class="badge" src="images/brand/Goldback_OfficialDistributor-Gold&amp;White.png" alt="Official Goldback Distributor badge">
   </div>
   <div class="hero-img">
     <img src="images/idaho/idaho-normal-uv-compare.jpg" alt="Idaho Goldback notes in normal light next to the same notes glowing under UV light, showing the anti-counterfeit verification feature">
+  </div>
+</section>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<section class="coming-soon" id="coming-soon">
+  <h2 class="section-title">Now Available</h2>
+  <hr class="gold-rule">
+  <p class="section-sub">The newest releases from Goldback Inc.</p>
+  <div class="coming-soon-grid">
+    <div class="coming-soon-card">
+      <!-- NV26-ART --><div class="art-ph"><b>Nevada &middot; 2026</b><span>All-new artwork</span></div>
+      <span class="release-badge">New Series</span>
+      <h3>Nevada 2026</h3>
+      <p>Nevada's 2020 series, completely reworked: new artwork from the Pony Express to Hoover Dam, new security features, and the first Nevada &frac14;, &frac12; and 2 Goldback.</p>
+      <p class="dates">Ask About Availability</p>
+      <a class="btn btn-gold" href="/series/nevada-2026" onclick="if(window.gtag){gtag('event','shop_now_click',{series:'Nevada 2026'});}">See the Series</a>
+    </div>
+    <div class="coming-soon-card">
+      <img src="images/coming-soon/california-phase1-lineup.jpg" alt="California Goldback Phase 1 — the 1/4, 1, and 5 Goldback">
+      <span class="release-badge">Official Artwork</span>
+      <h3>California Phase 1</h3>
+      <p>California joins the map. Phase 1 debuts the 1/4, 1, and 5 Goldback, with artwork set in Yosemite, at Sutter's Mill, and in the Sonoma Valley vineyards.</p>
+      <p class="dates">Available Now</p>
+      <a class="btn btn-gold" href="/series/california" onclick="if(window.gtag){gtag('event','shop_now_click',{series:'California Phase 1'});}">Shop Now</a>
+    </div>
+    <div class="coming-soon-card">
+      <img src="images/coming-soon/utah-refresh-lineup.jpg" alt="Utah Goldback series refresh — full lineup, all eight denominations">
+      <span class="release-badge">Official Artwork</span>
+      <h3>Utah New Release</h3>
+      <p>A full refresh of Utah's original 2019 series — new artwork across all eight denominations (1/4 through 50), plus two brand-new sizes, the 1/2 and 2 Goldback, never issued before.</p>
+      <p class="dates">Available Now</p>
+      <a class="btn btn-gold" href="/series/utah-refresh" onclick="if(window.gtag){gtag('event','shop_now_click',{series:'Utah New Release'});}">Shop Now</a>
+    </div>
+  </div>
+</section>
+
+<section class="series" id="series">
+  <h2 class="section-title">Ten State Series, Plus What's Next</h2>
+  <hr class="gold-rule">
+  <p class="section-sub">Each series features region-inspired artwork celebrating the virtues and landscapes of its state. All available now at our flat rate — contact us for availability.</p>
+  <div class="series-grid">
+    <a class="series-card" href="series/california"><img src="images/coming-soon/california-phase1-lineup.jpg" alt="California Goldback Phase 1 series"><h3>California <small>· new</small></h3><p>Yosemite, Sutter's Mill, and Sonoma Valley — California's story, struck in gold. Phase 1 introduces &frac14;GB, 1GB, and 5GB.</p></a>
+    <a class="series-card" href="series/utah-refresh"><img src="images/coming-soon/utah-refresh-lineup.jpg" alt="Utah Goldback refresh series"><h3>Utah Refresh <small>· new</small></h3><p>All-new artwork for the series that started it all — from Delicate Arch to the Golden Spike Ceremony, spanning &frac14;GB to 50GB.</p></a>
+    <a class="series-card" href="series/nevada-2026"><!-- NV26-ART --><div class="art-ph"><b>Nevada &middot; 2026</b><span>All-new artwork</span></div><h3>Nevada 2026 <small>&middot; new</small></h3><p>The Silver State, redrawn: Pony Express, Locomotive No. 40, Hoover Dam. Adds the &frac14;, &frac12; and 2.</p></a>
+    <a class="series-card" href="series/utah"><img src="images/utah/2022-utah-series-fan.jpg" alt="Utah Goldback series"><h3>Utah <small>· est. 2019</small></h3><p>The original series. Classical virtues brought to life — a pioneer woman with her beehive for Industry, figures for Truth, Steadfastness, Religious Freedom, and Triumph.</p></a>
+    <a class="series-card" href="series/nevada"><img src="images/nevada/2023-nevada-series-fan.jpg" alt="Nevada Goldback series"><h3>Nevada <small>· 2020–2025</small></h3><p>The Silver State's story — prospectors, cowboys, and entertainers weave Nevada's mining and frontier identity into each virtue.</p></a>
+    <a class="series-card" href="series/new-hampshire"><img src="images/new-hampshire/2023-new-hampshire-series-fan.jpg" alt="New Hampshire Goldback series"><h3>New Hampshire <small>· est. 2021</small></h3><p>"Live Free or Die" — colonial-era figures, militia imagery, and the Old Man of the Mountain celebrate revolutionary heritage and liberty.</p></a>
+    <a class="series-card" href="series/wyoming"><img src="images/wyoming/2022-wyoming-series-fan.jpg" alt="Wyoming Goldback series"><h3>Wyoming <small>· est. 2022</small></h3><p>Reverence, Industry, Trust, Fidelity, and Liberty — set against Native American imagery and Wyoming's natural beauty.</p></a>
+    <a class="series-card" href="series/south-dakota"><img src="images/south-dakota/2023-south-dakota-alpha-series-fan.jpg" alt="South Dakota Goldback series"><h3>South Dakota <small>· est. 2023</small></h3><p>Truth, Temperance, Diligence, Kindness, and Humility — honoring the state's agricultural heritage and natural landmarks.</p></a>
+    <a class="series-card" href="series/florida"><img src="images/florida/fl-beach-lineup.jpg" alt="Florida Goldback series"><h3>Florida <small>· est. 2025</small></h3><p>From St. Augustine and Seminole figures in the Everglades to lighthouses and rockets — the Sunshine State's multicultural story in gold.</p></a>
+    <a class="series-card" href="series/oklahoma"><img src="images/oklahoma/Oklahoma Nature LS 1.jpg" alt="Oklahoma Goldback series"><h3>Oklahoma <small>· est. 2025</small></h3><p>Hospitality, Courage, Unity, Progress, and Heritage — honoring Oklahoma's Native American roots and pioneer spirit.</p></a>
+    <a class="series-card" href="series/arizona"><img src="images/arizona/az-desert-lineup.jpg" alt="Arizona Goldback series"><h3>Arizona <small>· est. 2025</small></h3><p>Valor with the Buffalo Soldiers, Faith at Mission San Xavier del Bac, and Liberty honoring the Navajo Code Talkers — amid desert landscapes.</p></a>
+    <a class="series-card" href="series/idaho"><img src="images/idaho/Idaho Studio Group 1.jpg" alt="Idaho Goldback series"><h3>Idaho <small>· est. 2026</small></h3><p>The newest series. Classical virtues like Justitia — scales raised, sword lowered — set among Idaho's wilderness.</p></a>
+  </div>
+  <p style="text-align:center;margin-top:2rem;"><a class="btn btn-gold" href="#series">Browse the Full Catalog — Every Denomination</a></p>
+</section>
+
+<section class="order" id="order">
+  <h2 class="section-title">How to Order</h2>
+  <hr class="gold-rule">
+  <p class="section-sub">Buy online in a few clicks, or keep it personal — whichever you prefer.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="num">1</div>
+      <h3>Pick Your Denominations</h3>
+      <p>Add any in-stock Goldback to your cart from its series page, or call or email us if you'd rather talk it through first.</p>
+    </div>
+    <div class="step">
+      <div class="num">2</div>
+      <h3>Checkout Securely</h3>
+      <p>Pay online at our flat rate through Stripe — no surprises, no haggling.</p>
+    </div>
+    <div class="step">
+      <div class="num">3</div>
+      <h3>Pick Up or Ship</h3>
+      <p>Meet us locally in San Diego, or we'll arrange secure shipping to your door.</p>
+    </div>
+  </div>
+  <p class="order-note">We sell at our flat rate, so you get certainty with no surprises, regardless of daily gold price movement. (Note: merchants who accept Goldbacks as payment value them at Goldback Inc.'s current daily exchange rate, which is a separate number from our flat rate.)</p>
+  <p class="order-note" style="margin-top:0.8rem;">Pricing for Goldbacks is determined by the live market spot price of physical gold plus a retail premium. This premium covers our costs as an authorized distributor and ensures we can continue to bring spendable gold to the local San Diego community.</p>
+</section>
+
+<section class="what" id="goldbacks">
+  <img src="images/brand/Goldback_Horizontal-Black&amp;Gold.png" alt="Goldback logo" style="width:240px;max-width:70%;margin:0 auto 1.2rem;">
+  <h2 class="section-title">What is a Goldback?</h2>
+  <hr class="gold-rule">
+  <p class="section-sub">Goldbacks are trustworthy, spendable gold you can save a little at a time — real 24K gold designed for everyday transactions.</p>
+  <div class="what-grid">
+    <div class="what-card">
+      <h3>Protect Your Wealth</h3>
+      <p>Exchanging your dollars into Goldbacks connects your wealth to the spot price of physical gold — disconnecting it from the devaluation that affects other currencies.</p>
+    </div>
+    <div class="what-card">
+      <h3>Verify It's Real</h3>
+      <p>Every Goldback carries a unique serial number, reverse image artwork proof, and UV ink verification (2025+ mints) — making it one of the most verifiable forms of physical gold ever made.</p>
+    </div>
+    <div class="what-card">
+      <h3>Spend It Everywhere</h3>
+      <p>Denominations from ¼ to 100 make gold practical for everyday purchases at 2,000+ businesses nationwide — something traditional coins and bars simply can't do. Merchants that accept Goldbacks value them at Goldback Inc.'s current daily exchange rate per 1 Goldback, not a fixed price.</p>
+    </div>
+  </div>
+  <div class="app-callout">
+    <h3>📱 Get the Official Goldback App</h3>
+    <p>Goldback Inc.'s free app includes a transaction calculator, a map of merchants and authorized distributors, and the latest Goldback news — handy before your exchange or when you're ready to spend.</p>
+    <div style="display:flex;justify-content:center;gap:0.8rem;flex-wrap:wrap;">
+      <a class="btn btn-gold" href="https://apps.apple.com/app/id6739783504" target="_blank" rel="noopener noreferrer">Download on the App&nbsp;Store</a>
+      <a class="btn btn-gold" href="https://play.google.com/store/apps/details?id=com.goldback.GBMobileAppCalculator" target="_blank" rel="noopener noreferrer">Get it on Google&nbsp;Play</a>
+    </div>
   </div>
 </section>
 
@@ -390,91 +569,12 @@
   })();
 </script>
 
-<div class="rate-band gbc-hide" id="gbcRate" aria-live="polite">
-  <small>Today's Goldback rate</small>
-  <b id="gbcRateVal"></b>
-  <p>per Goldback &middot; updates daily with the price of gold &middot; sales tax not included</p>
-</div>
-
-<section class="what" id="goldbacks">
-  <img src="images/brand/Goldback_Horizontal-Black&amp;Gold.png" alt="Goldback logo" style="width:240px;max-width:70%;margin:0 auto 1.2rem;">
-  <h2 class="section-title">What is a Goldback?</h2>
-  <hr class="gold-rule">
-  <p class="section-sub">Goldbacks are trustworthy, spendable gold you can save a little at a time — real 24K gold designed for everyday transactions.</p>
-  <div class="what-grid">
-    <div class="what-card">
-      <h3>Protect Your Wealth</h3>
-      <p>Exchanging your dollars into Goldbacks connects your wealth to the spot price of physical gold — disconnecting it from the devaluation that affects other currencies.</p>
-    </div>
-    <div class="what-card">
-      <h3>Verify It's Real</h3>
-      <p>Every Goldback carries a unique serial number, reverse image artwork proof, and UV ink verification (2025+ mints) — making it one of the most verifiable forms of physical gold ever made.</p>
-    </div>
-    <div class="what-card">
-      <h3>Spend It Everywhere</h3>
-      <p>Denominations from ¼ to 100 make gold practical for everyday purchases at 2,000+ businesses nationwide — something traditional coins and bars simply can't do. Merchants that accept Goldbacks value them at Goldback Inc.'s current daily exchange rate per 1 Goldback, not a fixed price.</p>
-    </div>
-  </div>
-  <div class="app-callout">
-    <h3>📱 Get the Official Goldback App</h3>
-    <p>Goldback Inc.'s free app includes a transaction calculator, a map of merchants and authorized distributors, and the latest Goldback news — handy before your exchange or when you're ready to spend.</p>
-    <div style="display:flex;justify-content:center;gap:0.8rem;flex-wrap:wrap;">
-      <a class="btn btn-gold" href="https://apps.apple.com/app/id6739783504" target="_blank" rel="noopener noreferrer">Download on the App&nbsp;Store</a>
-      <a class="btn btn-gold" href="https://play.google.com/store/apps/details?id=com.goldback.GBMobileAppCalculator" target="_blank" rel="noopener noreferrer">Get it on Google&nbsp;Play</a>
-    </div>
-  </div>
-</section>
-
-<section class="gbc-hide" id="learn" style="background:#f1ead7">
+<section class="gbc-hide" id="learn">
   <h2 class="section-title">Learn</h2>
   <hr class="gold-rule">
   <p class="section-sub">Short videos from our YouTube channel.</p>
   <div class="gbc-vids" id="gbcVids"></div>
   <p style="text-align:center;margin-top:1.4rem"><a class="btn btn-outline" style="color:var(--gold)" id="gbcYt" href="https://www.youtube.com/@goldenbeemalajjewelry" target="_blank" rel="noopener">More on YouTube</a></p>
-</section>
-
-<section class="coming-soon" id="coming-soon">
-  <h2 class="section-title">Now Available</h2>
-  <hr class="gold-rule">
-  <p class="section-sub">Two new releases from Goldback Inc. — live now and ready to order at our flat rate.</p>
-  <div class="coming-soon-grid">
-    <div class="coming-soon-card">
-      <img src="images/coming-soon/california-phase1-lineup.jpg" alt="California Goldback Phase 1 — the 1/4, 1, and 5 Goldback">
-      <span class="release-badge">Official Artwork</span>
-      <h3>California Phase 1</h3>
-      <p>California joins the map. Phase 1 debuts the 1/4, 1, and 5 Goldback, with artwork set in Yosemite, at Sutter's Mill, and in the Sonoma Valley vineyards.</p>
-      <p class="dates">Available Now</p>
-      <a class="btn btn-gold" href="/series/california" onclick="if(window.gtag){gtag('event','shop_now_click',{series:'California Phase 1'});}">Shop Now</a>
-    </div>
-    <div class="coming-soon-card">
-      <img src="images/coming-soon/utah-refresh-lineup.jpg" alt="Utah Goldback series refresh — full lineup, all eight denominations">
-      <span class="release-badge">Official Artwork</span>
-      <h3>Utah New Release</h3>
-      <p>A full refresh of Utah's original 2019 series — new artwork across all eight denominations (1/4 through 50), plus two brand-new sizes, the 1/2 and 2 Goldback, never issued before.</p>
-      <p class="dates">Available Now</p>
-      <a class="btn btn-gold" href="/series/utah-refresh" onclick="if(window.gtag){gtag('event','shop_now_click',{series:'Utah New Release'});}">Shop Now</a>
-    </div>
-  </div>
-</section>
-
-<section class="series" id="series">
-  <h2 class="section-title">Ten State Series, Plus What's Next</h2>
-  <hr class="gold-rule">
-  <p class="section-sub">Each series features region-inspired artwork celebrating the virtues and landscapes of its state. All available now at our flat rate — contact us for availability.</p>
-  <div class="series-grid">
-    <a class="series-card" href="series/california"><img src="images/coming-soon/california-phase1-lineup.jpg" alt="California Goldback Phase 1 series"><h3>California <small>· new</small></h3><p>Yosemite, Sutter's Mill, and Sonoma Valley — California's story, struck in gold. Phase 1 introduces &frac14;GB, 1GB, and 5GB.</p></a>
-    <a class="series-card" href="series/utah-refresh"><img src="images/coming-soon/utah-refresh-lineup.jpg" alt="Utah Goldback refresh series"><h3>Utah Refresh <small>· new</small></h3><p>All-new artwork for the series that started it all — from Delicate Arch to the Golden Spike Ceremony, spanning &frac14;GB to 50GB.</p></a>
-    <a class="series-card" href="series/utah"><img src="images/utah/2022-utah-series-fan.jpg" alt="Utah Goldback series"><h3>Utah <small>· est. 2019</small></h3><p>The original series. Classical virtues brought to life — a pioneer woman with her beehive for Industry, figures for Truth, Steadfastness, Religious Freedom, and Triumph.</p></a>
-    <a class="series-card" href="series/nevada"><img src="images/nevada/2023-nevada-series-fan.jpg" alt="Nevada Goldback series"><h3>Nevada <small>· est. 2020</small></h3><p>The Silver State's story — prospectors, cowboys, and entertainers weave Nevada's mining and frontier identity into each virtue.</p></a>
-    <a class="series-card" href="series/new-hampshire"><img src="images/new-hampshire/2023-new-hampshire-series-fan.jpg" alt="New Hampshire Goldback series"><h3>New Hampshire <small>· est. 2021</small></h3><p>"Live Free or Die" — colonial-era figures, militia imagery, and the Old Man of the Mountain celebrate revolutionary heritage and liberty.</p></a>
-    <a class="series-card" href="series/wyoming"><img src="images/wyoming/2022-wyoming-series-fan.jpg" alt="Wyoming Goldback series"><h3>Wyoming <small>· est. 2022</small></h3><p>Reverence, Industry, Trust, Fidelity, and Liberty — set against Native American imagery and Wyoming's natural beauty.</p></a>
-    <a class="series-card" href="series/south-dakota"><img src="images/south-dakota/2023-south-dakota-alpha-series-fan.jpg" alt="South Dakota Goldback series"><h3>South Dakota <small>· est. 2023</small></h3><p>Truth, Temperance, Diligence, Kindness, and Humility — honoring the state's agricultural heritage and natural landmarks.</p></a>
-    <a class="series-card" href="series/florida"><img src="images/florida/fl-beach-lineup.jpg" alt="Florida Goldback series"><h3>Florida <small>· est. 2025</small></h3><p>From St. Augustine and Seminole figures in the Everglades to lighthouses and rockets — the Sunshine State's multicultural story in gold.</p></a>
-    <a class="series-card" href="series/oklahoma"><img src="images/oklahoma/Oklahoma Nature LS 1.jpg" alt="Oklahoma Goldback series"><h3>Oklahoma <small>· est. 2025</small></h3><p>Hospitality, Courage, Unity, Progress, and Heritage — honoring Oklahoma's Native American roots and pioneer spirit.</p></a>
-    <a class="series-card" href="series/arizona"><img src="images/arizona/az-desert-lineup.jpg" alt="Arizona Goldback series"><h3>Arizona <small>· est. 2025</small></h3><p>Valor with the Buffalo Soldiers, Faith at Mission San Xavier del Bac, and Liberty honoring the Navajo Code Talkers — amid desert landscapes.</p></a>
-    <a class="series-card" href="series/idaho"><img src="images/idaho/Idaho Studio Group 1.jpg" alt="Idaho Goldback series"><h3>Idaho <small>· est. 2026</small></h3><p>The newest series. Classical virtues like Justitia — scales raised, sword lowered — set among Idaho's wilderness.</p></a>
-  </div>
-  <p style="text-align:center;margin-top:2rem;"><a class="btn btn-gold" href="#series">Browse the Full Catalog — Every Denomination</a></p>
 </section>
 
 <section class="gbc-hide" id="spend">
@@ -485,7 +585,7 @@
   <p class="section-sub" style="margin:1.4rem auto 0">Own a business? <a href="#contact" data-gbc-interest="Accepting Goldbacks at my business">Start accepting Goldbacks</a></p>
 </section>
 
-<section class="gbc-hide" id="events" style="background:#f1ead7">
+<section class="gbc-hide" id="events">
   <h2 class="section-title">Classes &amp; Meetups</h2>
   <hr class="gold-rule">
   <p class="section-sub">Free and open to the community.</p>
@@ -521,31 +621,6 @@
       <div class="claim-status" id="claimStatus" role="status"></div>
     </form>
   </div>
-</section>
-
-<section class="order" id="order">
-  <h2 class="section-title">How to Order</h2>
-  <hr class="gold-rule">
-  <p class="section-sub">Buy online in a few clicks, or keep it personal — whichever you prefer.</p>
-  <div class="steps">
-    <div class="step">
-      <div class="num">1</div>
-      <h3>Pick Your Denominations</h3>
-      <p>Add any in-stock Goldback to your cart from its series page, or call or email us if you'd rather talk it through first.</p>
-    </div>
-    <div class="step">
-      <div class="num">2</div>
-      <h3>Checkout Securely</h3>
-      <p>Pay online at our flat rate through Stripe — no surprises, no haggling.</p>
-    </div>
-    <div class="step">
-      <div class="num">3</div>
-      <h3>Pick Up or Ship</h3>
-      <p>Meet us locally in San Diego, or we'll arrange secure shipping to your door.</p>
-    </div>
-  </div>
-  <p class="order-note">We sell at our flat rate, so you get certainty with no surprises, regardless of daily gold price movement. (Note: merchants who accept Goldbacks as payment value them at Goldback Inc.'s current daily exchange rate, which is a separate number from our flat rate.)</p>
-  <p class="order-note" style="margin-top:0.8rem;">Pricing for Goldbacks is determined by the live market spot price of physical gold plus a retail premium. This premium covers our costs as an authorized distributor and ensures we can continue to bring spendable gold to the local San Diego community.</p>
 </section>
 
 <section id="about">
@@ -602,6 +677,7 @@
           <option>California Phase 1</option>
           <option>Utah New Release</option>
           <option>Utah series</option>
+          <option>Nevada 2026 series</option>
           <option>Nevada series</option>
           <option>New Hampshire series</option>
           <option>Wyoming series</option>
@@ -997,6 +1073,7 @@
     sel.value = interest;
   }
   document.addEventListener("click", function(e){ var a = e.target.closest("[data-gbc-interest]"); if (a) pick(a.getAttribute("data-gbc-interest")); });
+  try { var qi = new URLSearchParams(location.search).get("interest"); if (qi) pick(qi.slice(0, 120)); } catch (e) {}
   // Today's rate = the same price the checkout uses
   fetch("/api/pricing?qty=1").then(function(r){ return r.json(); }).then(function(j){
     if (j && j.ok && j.pricePerGoldbackCents > 0){ document.getElementById("gbcRateVal").textContent = "$" + (j.pricePerGoldbackCents / 100).toFixed(2); show("gbcRate"); }
