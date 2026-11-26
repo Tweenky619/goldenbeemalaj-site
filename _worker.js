@@ -28,6 +28,12 @@ export default {
       return handleLead(request, env, ctx);
     }
 
+    // Scratch & Win discount codes (moved here from app.goldenbeemalaj.com)
+    if (url.pathname === "/api/discount-code") {
+      if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
+      return handleDiscountCode(request, env);
+    }
+
     // Public price quote — used to lock in a rate for the 10-minute cart timer
     if (url.pathname === "/api/pricing") {
       if (request.method !== "GET") return json({ ok: false, error: "Method not allowed" }, 405);
@@ -430,8 +436,10 @@ async function handleCheckout(request, env) {
   // and there's one source of truth for pricing across both sites. Falls
   // back to this site's own flat admin-set rate if that call fails.
   const totalQty = items.reduce((sum, item) => sum + item.faceValueGB * item.quantity, 0);
-  let priceCents = await fetchTieredPriceCents(totalQty);
-
+  // Daily-rate ladder first; this site's own admin price is the backup
+  let priceCents = null;
+  const dailyForCheckout = await getLockedDailyRate(env);
+  if (dailyForCheckout) priceCents = ladderCents(totalQty, Math.round(dailyForCheckout * 100));
   if (!priceCents) {
     try {
       const row = await env.DB.prepare("SELECT price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1").first();
@@ -440,7 +448,6 @@ async function handleCheckout(request, env) {
       console.log("fallback pricing lookup failed:", err.message);
     }
   }
-  if (priceCents) priceCents = await applyDailyRateRule(priceCents, totalQty, env);
   if (!priceCents) {
     return json({ ok: false, error: "Checkout is temporarily unavailable — please try again shortly or call/email us to order." }, 400);
   }
@@ -967,19 +974,18 @@ async function handlePublicPricing(env, url) {
   const qty = parseFloat(url.searchParams.get("qty") || "");
   const totalQty = qty > 0 ? qty : 1;
 
-  const tiered = await fetchTieredPriceCents(totalQty);
   const dailyRate = await getLockedDailyRate(env);
   const lockUntil = pricePeriod().endsAt;
   const dailyCents = dailyRate ? Math.round(dailyRate * 100) : null;
   const unlockQty = dailyCents ? Math.ceil(DAILY_RATE_THRESHOLD_CENTS / dailyCents) : null;
-  if (tiered) return json({ ok: true, pricePerGoldbackCents: await applyDailyRateRule(tiered, totalQty, env), dailyCents, unlockQty, lockUntil });
+  if (dailyCents) return json({ ok: true, pricePerGoldbackCents: ladderCents(totalQty, dailyCents), dailyCents, unlockQty, lockUntil });
 
   try {
     const row = await env.DB.prepare(
       "SELECT price_per_goldback_cents FROM pricing ORDER BY id DESC LIMIT 1"
     ).first();
     if (!row) return json({ ok: false, error: "Pricing not available." });
-    return json({ ok: true, pricePerGoldbackCents: await applyDailyRateRule(row.price_per_goldback_cents, totalQty, env), dailyCents, unlockQty, lockUntil });
+    return json({ ok: true, pricePerGoldbackCents: row.price_per_goldback_cents, dailyCents, unlockQty, lockUntil });
   } catch (err) {
     console.log("handlePublicPricing error:", err.message);
     return json({ ok: false, error: "Pricing not available." });
@@ -1061,6 +1067,41 @@ async function adminUpdateOrder(request, env, id) {
 function clean(value, maxLen) {
   if (typeof value !== "string") return "";
   return value.replace(/\s+/g, " ").trim().slice(0, maxLen);
+}
+
+// ---- Scratch & Win discount codes ----
+const MATCH_PRIZE_BPS = [300, 400, 500, 1000]; // 3%, 4%, 5%, 10% for 0-3 logos found
+function discountCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let c = "GB-";
+  for (let i = 0; i < 8; i++) { if (i === 4) c += "-"; c += chars[Math.floor(Math.random() * chars.length)]; }
+  return c;
+}
+async function handleDiscountCode(request, env) {
+  let body = {};
+  try { body = await request.json(); } catch (e) { return json({ error: "Invalid request." }, 400); }
+  const name = String(body.name || "").trim().slice(0, 120);
+  const contact = String(body.contact || "").trim().slice(0, 200);
+  const source = String(body.source || "scratch_card").trim().slice(0, 100);
+  if (!contact) return json({ error: "Contact is required." }, 400);
+  try {
+    await env.DB.prepare("CREATE TABLE IF NOT EXISTS discount_codes (code TEXT PRIMARY KEY, discount_bps INTEGER NOT NULL, contact TEXT, source TEXT, created_at TEXT DEFAULT (datetime('now')), expires_at TEXT, redeemed_at TEXT)").run();
+    const recent = await env.DB.prepare("SELECT code, discount_bps, expires_at FROM discount_codes WHERE contact = ?1 AND redeemed_at IS NULL AND created_at > datetime('now', '-1 day') ORDER BY created_at DESC LIMIT 1").bind(contact).first();
+    if (recent) return json({ code: recent.code, discount_bps: recent.discount_bps, expires_at: recent.expires_at });
+    const n = Math.min(3, Math.max(0, Math.trunc(Number(body.matches) || 0)));
+    const bps = MATCH_PRIZE_BPS[n];
+    const expires = new Date(Date.now() + 60 * 864e5).toISOString();
+    let code = discountCode();
+    for (let i = 0; i < 5; i++) { const ex = await env.DB.prepare("SELECT code FROM discount_codes WHERE code = ?1").bind(code).first(); if (!ex) break; code = discountCode(); }
+    await env.DB.prepare("INSERT INTO discount_codes (code, discount_bps, contact, source, expires_at) VALUES (?1, ?2, ?3, ?4, ?5)").bind(code, bps, contact, source, expires).run();
+    if (name) {
+      try { await env.DB.prepare("INSERT INTO leads (name, contact, interest, source_page) VALUES (?1, ?2, ?3, ?4)").bind(name, contact, "Scratch card promotion - Code: " + code, "scratch_card").run(); } catch (e) {}
+    }
+    return json({ code, discount_bps: bps, expires_at: expires });
+  } catch (err) {
+    console.log("handleDiscountCode error:", err.message);
+    return json({ error: "Could not create a code right now. Please call us." }, 500);
+  }
 }
 
 function json(body, status) {

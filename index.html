@@ -1028,7 +1028,7 @@
     status.className = 'claim-status';
     status.textContent = '';
 
-    fetch('https://app.goldenbeemalaj.com/api/discount-code', {
+    fetch('/api/discount-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name, contact: contact, source: 'scratch_card', matches: matches })
