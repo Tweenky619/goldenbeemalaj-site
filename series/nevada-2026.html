@@ -108,6 +108,17 @@
     nav a { margin-left: 0.9rem; font-size: 0.9rem; }
   }
 </style><style>
+  .nv-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:.8rem; margin-top:1rem; }
+  @media (min-width:760px){ .nv-grid { grid-template-columns:repeat(4,1fr); } }
+  .denom-card { background:#fff; border:1px solid #e8dfc8; border-radius:10px; overflow:hidden; display:flex; flex-direction:column; }
+  .nv-img { display:block; background:#1b150c; aspect-ratio:3/4; padding:7% 10%; }
+  .nv-img img { width:100%; height:100%; object-fit:contain; display:block; }
+  .denom-body { padding:.7rem .8rem .9rem; display:flex; flex-direction:column; flex:1; }
+  .denom-label { font-family:Arial,Helvetica,sans-serif; font-weight:bold; font-size:.95rem; color:#1a1611; }
+  .denom-virtue { font-family:Arial,Helvetica,sans-serif; font-size:.74rem; color:#a87400; text-transform:uppercase; letter-spacing:.03em; margin:.15rem 0 .45rem; }
+  .status-tag { display:inline-block; align-self:flex-start; font-family:Arial,Helvetica,sans-serif; font-size:.7rem; text-transform:uppercase; padding:.2rem .55rem; border-radius:12px; background:#e8f2e4; color:#3d6b2f; margin-bottom:.6rem; }
+  .buy-row { margin-top:auto; }
+  .buy-btn { padding:.55rem .6rem; font-size:.82rem; }
   .art-ph { aspect-ratio: 16/7; border-radius: 10px; background: radial-gradient(circle at 30% 20%, #3a2c0c, #120f0b 70%); border: 1px solid rgba(218,153,0,.45); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #FDDD3B; font-family: Georgia, serif; text-align: center; padding: 1rem; }
   .art-ph b { font-size: 2rem; letter-spacing: .04em; } .art-ph span { font-family: Arial, Helvetica, sans-serif; font-size: .85rem; color: #cfc6b0; margin-top: .4rem; }
   .nv-denoms { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin: 1rem 0 1.5rem; }
@@ -133,8 +144,7 @@
   <p class="breadcrumb"><a href="/">Home</a> &rsaquo; <a href="/#series">Series</a> &rsaquo; Nevada 2026</p>
 
   <div class="hero-img">
-    <!-- NV26-ART: swap this block for the official lineup image (images/nevada/2026/lineup.jpg) once it's uploaded -->
-    <div class="art-ph"><b>Nevada &middot; 2026</b><span>All-new artwork &middot; official images coming soon</span></div>
+    <img src="/images/shop/nevada-2026-group.webp" alt="Nevada 2026 Goldbacks under UV light" style="width:100%;border-radius:10px;display:block">
   </div>
 
   <h1>Nevada Goldback 2026 Series &mdash; New Artwork</h1>
@@ -146,15 +156,126 @@
     <p style="margin:0;">Like every Goldback, each 2026 Nevada note is real 24-karat gold &mdash; not plated, not a token &mdash; vacuum-deposited onto a durable polymer note, with UV-reactive artwork you can check with a UV light.</p>
   </div>
 
-  <div class="stock-line">&frac14; through 50 Goldback &middot; ask us about availability.</div>
+  <div class="stock-line">Officially launched November 24, 2026 &middot; &frac14; through 50 Goldback &middot; in stock now.</div>
 
   <p>As San Diego's Official Authorized Goldback Distributor, Goldenbee MALAJ can set the new Nevada series aside for you. Collectors finishing a Nevada set: the 2020&ndash;2025 designs are now out of print, so both versions belong in a complete collection.</p>
 
   <div class="cta-row">
-    <a class="btn btn-gold" href="/?interest=Nevada%202026%20series#contact">Reserve Yours</a>
+    <a class="btn btn-gold" href="#nv-buy">Order Nevada 2026</a>
     <a class="btn btn-outline" href="tel:+16195048977">Call (619) 504-8977</a>
   </div>
 
+
+  <section id="nv-buy" style="scroll-margin-top:1rem">
+    <h2 style="margin-top:1.8rem">Order the Nevada 2026 series</h2>
+    <p style="margin-top:.3rem">Tap a Goldback to see its back, UV light artwork and a 3D view in our <a href="/shop?state=nevada-2026">Shop</a>.</p>
+    <div class="nv-grid">
+      <div class="denom-card">
+        <a class="nv-img" href="/shop?state=nevada-2026" title="See front, back, UV and 3D"><img loading="lazy" src="/images/thumbs/nevada-2026-q-0.webp" alt="Nevada 2026 ¼ Goldback front"></a>
+        <div class="denom-body">
+          <div class="denom-label">&frac14; GB</div>
+          <div class="denom-virtue">Fortitudo · Strength</div>
+          <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Nevada 2026" data-denomination="&frac14; GB" data-face-value="0.25">
+            <input type="number" class="buy-qty" value="1" min="1" max="999">
+            <button type="button" class="btn btn-gold buy-btn">Add to Cart</button>
+          </div>
+          <div class="buy-error" hidden></div>
+        </div>
+      </div>
+      <div class="denom-card">
+        <a class="nv-img" href="/shop?state=nevada-2026" title="See front, back, UV and 3D"><img loading="lazy" src="/images/thumbs/nevada-2026-h-0.webp" alt="Nevada 2026 ½ Goldback front"></a>
+        <div class="denom-body">
+          <div class="denom-label">&frac12; GB</div>
+          <div class="denom-virtue">Constantia · Constance</div>
+          <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Nevada 2026" data-denomination="&frac12; GB" data-face-value="0.5">
+            <input type="number" class="buy-qty" value="1" min="1" max="999">
+            <button type="button" class="btn btn-gold buy-btn">Add to Cart</button>
+          </div>
+          <div class="buy-error" hidden></div>
+        </div>
+      </div>
+      <div class="denom-card">
+        <a class="nv-img" href="/shop?state=nevada-2026" title="See front, back, UV and 3D"><img loading="lazy" src="/images/thumbs/nevada-2026-1-0.webp" alt="Nevada 2026 1 Goldback front"></a>
+        <div class="denom-body">
+          <div class="denom-label">1 GB</div>
+          <div class="denom-virtue">Resilientia · Resilience</div>
+          <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Nevada 2026" data-denomination="1 GB" data-face-value="1.0">
+            <input type="number" class="buy-qty" value="1" min="1" max="999">
+            <button type="button" class="btn btn-gold buy-btn">Add to Cart</button>
+          </div>
+          <div class="buy-error" hidden></div>
+        </div>
+      </div>
+      <div class="denom-card">
+        <a class="nv-img" href="/shop?state=nevada-2026" title="See front, back, UV and 3D"><img loading="lazy" src="/images/thumbs/nevada-2026-2-0.webp" alt="Nevada 2026 2 Goldback front"></a>
+        <div class="denom-body">
+          <div class="denom-label">2 GB</div>
+          <div class="denom-virtue">Harmonia · Harmony</div>
+          <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Nevada 2026" data-denomination="2 GB" data-face-value="2.0">
+            <input type="number" class="buy-qty" value="1" min="1" max="999">
+            <button type="button" class="btn btn-gold buy-btn">Add to Cart</button>
+          </div>
+          <div class="buy-error" hidden></div>
+        </div>
+      </div>
+      <div class="denom-card">
+        <a class="nv-img" href="/shop?state=nevada-2026" title="See front, back, UV and 3D"><img loading="lazy" src="/images/thumbs/nevada-2026-5-0.webp" alt="Nevada 2026 5 Goldback front"></a>
+        <div class="denom-body">
+          <div class="denom-label">5 GB</div>
+          <div class="denom-virtue">Industria · Industry</div>
+          <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Nevada 2026" data-denomination="5 GB" data-face-value="5.0">
+            <input type="number" class="buy-qty" value="1" min="1" max="999">
+            <button type="button" class="btn btn-gold buy-btn">Add to Cart</button>
+          </div>
+          <div class="buy-error" hidden></div>
+        </div>
+      </div>
+      <div class="denom-card">
+        <a class="nv-img" href="/shop?state=nevada-2026" title="See front, back, UV and 3D"><img loading="lazy" src="/images/thumbs/nevada-2026-10-0.webp" alt="Nevada 2026 10 Goldback front"></a>
+        <div class="denom-body">
+          <div class="denom-label">10 GB</div>
+          <div class="denom-virtue">Tyche · Luck</div>
+          <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Nevada 2026" data-denomination="10 GB" data-face-value="10.0">
+            <input type="number" class="buy-qty" value="1" min="1" max="999">
+            <button type="button" class="btn btn-gold buy-btn">Add to Cart</button>
+          </div>
+          <div class="buy-error" hidden></div>
+        </div>
+      </div>
+      <div class="denom-card">
+        <a class="nv-img" href="/shop?state=nevada-2026" title="See front, back, UV and 3D"><img loading="lazy" src="/images/thumbs/nevada-2026-25-0.webp" alt="Nevada 2026 25 Goldback front"></a>
+        <div class="denom-body">
+          <div class="denom-label">25 GB</div>
+          <div class="denom-virtue">Concordia · Concord</div>
+          <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Nevada 2026" data-denomination="25 GB" data-face-value="25.0">
+            <input type="number" class="buy-qty" value="1" min="1" max="999">
+            <button type="button" class="btn btn-gold buy-btn">Add to Cart</button>
+          </div>
+          <div class="buy-error" hidden></div>
+        </div>
+      </div>
+      <div class="denom-card">
+        <a class="nv-img" href="/shop?state=nevada-2026" title="See front, back, UV and 3D"><img loading="lazy" src="/images/thumbs/nevada-2026-50-0.webp" alt="Nevada 2026 50 Goldback front"></a>
+        <div class="denom-body">
+          <div class="denom-label">50 GB</div>
+          <div class="denom-virtue">Libertas · Liberty</div>
+          <span class="status-tag in-stock">In stock</span>
+          <div class="buy-row" data-series="Nevada 2026" data-denomination="50 GB" data-face-value="50.0">
+            <input type="number" class="buy-qty" value="1" min="1" max="999">
+            <button type="button" class="btn btn-gold buy-btn">Add to Cart</button>
+          </div>
+          <div class="buy-error" hidden></div>
+        </div>
+      </div>
+    </div>
+  </section>
   <div class="faq">
     <h2>What's on the new Nevada notes?</h2>
     <p>The classical virtues stay, with new scenes from Nevada's history and landscape.</p>
@@ -195,5 +316,6 @@
   © 2026 Goldenbee MALAJ Jewelry LLC · San Diego, California · Official Authorized Distributor for Goldback Inc.
   <p style="margin-top:0.9rem;max-width:720px;margin-left:auto;margin-right:auto;font-size:0.76rem;color:#7a7060;line-height:1.6;">Goldenbee MALAJ Jewelry LLC is an authorized retail distributor of Goldbacks, a privately issued, gold-backed instrument manufactured by Goldback, Inc. The purchase of Goldbacks is a retail transaction in a physical gold product and is not a currency exchange service. Goldenbee MALAJ is not a Money Services Business (MSB), does not exchange foreign currencies, and is not regulated as such. Goldbacks are a product of Goldback, Inc. (Lehi, UT). Nothing on this site constitutes investment, legal, or tax advice.</p>
 </footer>
+<script src="/gb-shop.js"></script>
 </body>
 </html>

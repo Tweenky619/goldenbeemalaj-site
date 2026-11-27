@@ -474,7 +474,7 @@
   }
 
   // ---------- series pages: apply live stock to each card ----------
-  var SLUGS = { 'arizona': 'Arizona', 'california': 'California', 'florida': 'Florida', 'idaho': 'Idaho', 'nevada': 'Nevada', 'new-hampshire': 'New Hampshire', 'oklahoma': 'Oklahoma', 'south-dakota': 'South Dakota', 'utah-refresh': 'Utah Refresh', 'utah': 'Utah', 'wyoming': 'Wyoming' };
+  var SLUGS = { 'arizona': 'Arizona', 'california': 'California', 'florida': 'Florida', 'idaho': 'Idaho', 'nevada': 'Nevada', 'new-hampshire': 'New Hampshire', 'oklahoma': 'Oklahoma', 'south-dakota': 'South Dakota', 'utah-refresh': 'Utah Refresh', 'nevada-2026': 'Nevada 2026', 'utah': 'Utah', 'wyoming': 'Wyoming' };
   var slugM = location.pathname.match(/\/series\/([a-z-]+?)(?:\.html)?$/), pageSeries = slugM && SLUGS[slugM[1]];
   if (pageSeries && document.querySelector('.denom-card')) loadStock(function () {
     document.querySelectorAll('.denom-card').forEach(function (card) {
