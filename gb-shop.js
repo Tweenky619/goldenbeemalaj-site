@@ -373,7 +373,8 @@
         delivery: getDelivery(), code: code ? code.code : null
       })
     }).then(function (r) { return r.json(); }).then(function (d) {
-      if (d.ok && d.url) { wr(CART_KEY, null); wr(LOCK_KEY, null); wr(CODE_KEY, null); location.href = d.url; return; }
+      // Keep the cart until payment succeeds (order-confirmation clears it), so backing out of Stripe keeps it.
+      if (d.ok && d.url) { location.href = d.url; return; }
       throw new Error(d.error || 'Could not start checkout.');
     }).catch(function (e) {
       btn.disabled = false; btn.innerHTML = ICON.lock + ' Secure Checkout';
@@ -505,6 +506,14 @@
   });
 
   window.GBCart = { loadStock: loadStock, stockStatus: stockStatus, request: requestItem, get: getCart, setQty: setQtyFor, open: openDrawer, onChange: function (f) { listeners.push(f); } };
+
+  // Payment finished: now it's safe to empty the cart.
+  if (/\/order-confirmation/.test(location.pathname) && /[?&]session_id=/.test(location.search)) { wr(CART_KEY, null); wr(LOCK_KEY, null); wr(CODE_KEY, null); }
+  // Keep the badge honest when the page comes back from the browser cache, another tab, or the background.
+  function refresh() { renderBadge(); listeners.forEach(function (f) { try { f(); } catch (e) {} }); if (!drawer.hidden && view === 'cart') renderDrawer(true); }
+  window.addEventListener('pageshow', function (e) { if (e.persisted) refresh(); });
+  window.addEventListener('storage', function (e) { if (!e.key || e.key === CART_KEY) refresh(); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
 
   if (/[?&]cart=open/.test(location.search)) setTimeout(openDrawer, 300);
   renderBadge();
