@@ -311,7 +311,6 @@
     <p class="eyebrow">San Diego's Official Goldback Distributor</p>
     <h1>Real Gold You Can Save and Spend</h1>
     <p class="lead">Goldbacks are real 24K gold in amounts small enough to save a little at a time or spend at local businesses. We're a family business in San Diego: exchanges by appointment for local pickup, or shipped nationwide.</p>
-    <div class="rate-band gbc-hide" id="gbcRate" aria-live="polite"><small>Today's rate</small><b id="gbcRateVal"></b><p>per Goldback &middot; good until <span id="gbcUntil">9 AM Pacific Time</span> tomorrow, then it updates with gold</p></div>
     <div class="cta-row">
       <a class="btn btn-gold" href="#coming-soon">See New Releases</a>
       <a class="btn btn-outline" href="/#lead">Get a Quote</a>
@@ -379,7 +378,7 @@
 <section class="series" id="series">
   <h2 class="section-title">Ten State Series, Plus What's Next</h2>
   <hr class="gold-rule">
-  <p class="section-sub">Each series features region-inspired artwork celebrating the virtues and landscapes of its state. All available now at our flat rate — contact us for availability.</p>
+  <p class="section-sub">Each series features region-inspired artwork celebrating the virtues and landscapes of its state. All available now — contact us for availability.</p>
   <div class="series-grid">
     <a class="series-card" href="series/california"><img src="images/coming-soon/california-phase1-lineup.jpg" alt="California Goldback Phase 1 series"><h3>California <small>· new</small></h3><p>Yosemite, Sutter's Mill, and Sonoma Valley — California's story, struck in gold. Phase 1 introduces &frac14;GB, 1GB, and 5GB.</p></a>
     <a class="series-card" href="series/utah-refresh"><img src="images/coming-soon/utah-refresh-lineup.jpg" alt="Utah Goldback refresh series"><h3>Utah Refresh <small>· new</small></h3><p>All-new artwork for the series that started it all — from Delicate Arch to the Golden Spike Ceremony, spanning &frac14;GB to 50GB.</p></a>
@@ -410,7 +409,7 @@
     <div class="step">
       <div class="num">2</div>
       <h3>Checkout Securely</h3>
-      <p>Pay online at our flat rate through Stripe — no surprises, no haggling.</p>
+      <p>Pay securely online through Stripe. You see your total in the cart before you pay.</p>
     </div>
     <div class="step">
       <div class="num">3</div>
@@ -418,7 +417,7 @@
       <p>Meet us locally in San Diego, or we'll arrange secure shipping to your door.</p>
     </div>
   </div>
-  <p class="order-note">We sell at our flat rate, so you get certainty with no surprises, regardless of daily gold price movement. (Note: merchants who accept Goldbacks as payment value them at Goldback Inc.'s current daily exchange rate, which is a separate number from our flat rate.)</p>
+  <p class="order-note">Bigger exchanges get better pricing. Ask us for today's price, or see it in your cart before you check out.</p>
   <p class="order-note" style="margin-top:0.8rem;">Pricing for Goldbacks is determined by the live market spot price of physical gold plus a retail premium. This premium covers our costs as an authorized distributor and ensures we can continue to bring spendable gold to the local San Diego community.</p>
 </section>
 
@@ -451,7 +450,7 @@
   </div>
 </section>
 
-<section class="gold-chart" id="gold-price">
+<section class="gold-chart" id="gold-price" hidden style="display:none">
   <h2 class="section-title">Live Gold Price</h2>
   <hr class="gold-rule">
   <p class="section-sub">The real spot price of gold, updated live — the same market Goldbacks are backed by.</p>
@@ -660,7 +659,7 @@
   </div>
   <div class="lead-capture" id="lead">
     <h3>Prefer We Reach Out to You?</h3>
-    <p class="lead-sub">Leave your info and we&#8217;ll get back to you to confirm our flat rate and availability &#8212; usually the same day.</p>
+    <p class="lead-sub">Leave your info and we&#8217;ll get back to you to confirm today's price and availability &#8212; usually the same day.</p>
     <form id="leadForm" novalidate>
       <div>
         <label for="leadName">Your name</label>
@@ -1074,11 +1073,6 @@
   }
   document.addEventListener("click", function(e){ var a = e.target.closest("[data-gbc-interest]"); if (a) pick(a.getAttribute("data-gbc-interest")); });
   try { var qi = new URLSearchParams(location.search).get("interest"); if (qi) pick(qi.slice(0, 120)); } catch (e) {}
-  // Today's rate = the same price the checkout uses
-  fetch("/api/pricing?qty=1").then(function(r){ return r.json(); }).then(function(j){
-    if (j && j.lockUntil) { try { var u = new Date(j.lockUntil); document.getElementById("gbcUntil").textContent = u.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", timeZoneName: "short" }) + (/Los_Angeles|Vancouver|Tijuana/.test(Intl.DateTimeFormat().resolvedOptions().timeZone) ? "" : " (9 AM Pacific Time)"); } catch (e) {} }
-    if (j && j.ok && j.pricePerGoldbackCents > 0){ document.getElementById("gbcRateVal").textContent = "$" + (j.pricePerGoldbackCents / 100).toFixed(2); show("gbcRate"); }
-  }).catch(function(){});
   fetch("https://goldback.goldenbeemalaj.com/api/gb-public").then(function(r){ return r.json(); }).then(function(d){
     var m = d.merchants || [];
     if (m.length){
