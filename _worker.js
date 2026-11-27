@@ -29,6 +29,12 @@ export default {
     }
 
     // Scratch & Win discount codes (moved here from app.goldenbeemalaj.com)
+    if (url.pathname === "/api/reserve" && request.method === "POST") {
+      return handleReserve(request, env, ctx);
+    }
+    if (url.pathname === "/api/discount-check") {
+      return handleDiscountCheck(request, env);
+    }
     if (url.pathname === "/api/discount-code") {
       if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
       return handleDiscountCode(request, env);
@@ -452,6 +458,16 @@ async function handleCheckout(request, env) {
     return json({ ok: false, error: "Checkout is temporarily unavailable — please try again shortly or call/email us to order." }, 400);
   }
 
+  // Scratch & Win code: validated server-side; never takes the price below Goldback's daily rate
+  let promo = null;
+  if (data.code) {
+    promo = await lookupDiscountCode(env, data.code);
+    if (!promo) return json({ ok: false, error: "That Scratch & Win code is expired or already used. Remove it and try again." }, 400);
+    const floor = dailyForCheckout ? Math.round(dailyForCheckout * 100) : 0;
+    priceCents = Math.max(floor, Math.round(priceCents * (1 - promo.discount_bps / 10000)));
+  }
+  const pickup = data.delivery === "pickup";
+
   const origin = new URL(request.url).origin;
   const lineItems = items.map((item) => ({
     quantity: item.quantity,
@@ -470,26 +486,25 @@ async function handleCheckout(request, env) {
   const FREE_SHIPPING_THRESHOLD_CENTS = 19999;
   const FLAT_SHIPPING_CENTS = 999;
   const subtotalCents = lineItems.reduce((sum, li) => sum + li.price_data.unit_amount * li.quantity, 0);
-  const shippingCents = subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : FLAT_SHIPPING_CENTS;
-  const shippingLabel = shippingCents === 0 ? "Free Shipping" : "Standard Shipping";
+  const shippingCents = pickup ? 0 : (subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : FLAT_SHIPPING_CENTS);
+  const shippingLabel = pickup ? "Free Local Pickup - San Diego (we'll text you a time)" : (shippingCents === 0 ? "Free Insured Shipping" : "Standard Shipping");
 
   try {
-    const session = await stripeCreateCheckoutSession(env, {
+    const params = {
       mode: "payment",
       success_url: origin + "/order-confirmation?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: origin + "/order-cancelled",
+      cancel_url: origin + "/?cart=open",
       line_items: lineItems,
-      shipping_address_collection: { allowed_countries: ["US"] },
+      phone_number_collection: { enabled: true },
       shipping_options: [
         {
           shipping_rate_data: {
             type: "fixed_amount",
             fixed_amount: { amount: shippingCents, currency: "usd" },
             display_name: shippingLabel,
-            delivery_estimate: {
-              minimum: { unit: "business_day", value: 2 },
-              maximum: { unit: "business_day", value: 6 },
-            },
+            delivery_estimate: pickup
+              ? { minimum: { unit: "business_day", value: 1 }, maximum: { unit: "business_day", value: 2 } }
+              : { minimum: { unit: "business_day", value: 2 }, maximum: { unit: "business_day", value: 6 } },
           },
         },
       ],
@@ -497,8 +512,22 @@ async function handleCheckout(request, env) {
       metadata: {
         // Compact keys (s/d/f/q) to stay well under Stripe's 500-char metadata value limit.
         items: JSON.stringify(items.map((i) => ({ s: i.series, d: i.denomination, f: i.faceValueGB, q: i.quantity }))),
+        delivery: pickup ? "pickup" : "ship",
+        code: promo ? promo.code : "",
       },
-    });
+    };
+    if (pickup) {
+      // Pickup is taxed at our San Diego location: a customer whose shipping address is the pickup spot
+      const cust = await stripePost(env, "customers", {
+        shipping: { name: "Local pickup", address: { line1: "3843 T Street", city: "San Diego", state: "CA", postal_code: "92113", country: "US" } },
+        address: { line1: "3843 T Street", city: "San Diego", state: "CA", postal_code: "92113", country: "US" },
+      });
+      params.customer = cust.id;
+      params.customer_update = { name: "auto" };
+    } else {
+      params.shipping_address_collection = { allowed_countries: ["US"] };
+    }
+    const session = await stripeCreateCheckoutSession(env, params);
     return json({ ok: true, url: session.url });
   } catch (err) {
     console.log("Stripe checkout session creation failed:", err.message);
@@ -528,7 +557,14 @@ async function handleStripeWebhook(request, env, ctx) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const details = session.customer_details || {};
-    const shipping = session.shipping_details || details || {};
+    const meta = session.metadata || {};
+    const shipping = meta.delivery === "pickup"
+      ? { pickup: true, name: details.name || null, phone: details.phone || null, email: details.email || null }
+      : Object.assign({}, session.shipping_details || details || {}, { phone: details.phone || null });
+    if (meta.code) {
+      try { await env.DB.prepare("UPDATE discount_codes SET redeemed_at = datetime('now') WHERE code = ?1 AND redeemed_at IS NULL").bind(meta.code).run(); }
+      catch (err) { console.log("redeem code failed:", err.message); }
+    }
 
     let items = [];
     try {
@@ -648,6 +684,17 @@ async function stripeCreateCheckoutSession(env, params) {
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: form.toString(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data.error && data.error.message) || "Stripe error");
+  return data;
+}
+
+async function stripePost(env, path, params) {
+  const res = await fetch("https://api.stripe.com/v1/" + path, {
+    method: "POST",
+    headers: { Authorization: "Bearer " + env.STRIPE_SECRET_KEY.replace(/\s+/g, ""), "Content-Type": "application/x-www-form-urlencoded" },
+    body: toStripeForm(params, "", new URLSearchParams()).toString(),
   });
   const data = await res.json();
   if (!res.ok) throw new Error((data.error && data.error.message) || "Stripe error");
@@ -1109,4 +1156,69 @@ function json(body, status) {
     status: status || 200,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+async function lookupDiscountCode(env, raw) {
+  const code = String(raw || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 24);
+  if (!code) return null;
+  try {
+    const row = await env.DB.prepare("SELECT code, discount_bps, expires_at FROM discount_codes WHERE code = ?1 AND redeemed_at IS NULL AND (expires_at IS NULL OR expires_at > ?2)").bind(code, new Date().toISOString()).first();
+    return row || null;
+  } catch (err) { console.log("discount lookup failed:", err.message); return null; }
+}
+
+async function handleDiscountCheck(request, env) {
+  const code = new URL(request.url).searchParams.get("code");
+  const row = await lookupDiscountCode(env, code);
+  if (!row) return json({ ok: false, error: "That code is expired, already used, or not valid." });
+  return json({ ok: true, code: row.code, discount_bps: row.discount_bps, expires_at: row.expires_at });
+}
+
+// "Reserve now, pay at pickup": no payment. Saved as a lead (so it shows in the
+// Goldbacks app inquiries) and emailed to the owner with the cart and a price estimate.
+async function handleReserve(request, env, ctx) {
+  let data;
+  try { data = await request.json(); } catch { return json({ ok: false, error: "Invalid request." }, 400); }
+  if (data.company) return json({ ok: true }); // honeypot
+  const name = clean(data.name, 120);
+  const phone = clean(data.phone, 40);
+  const email = clean(data.email, 160);
+  const when = clean(data.when, 60);
+  const note = clean(data.note, 500);
+  if (!name || String(phone).replace(/\D/g, "").length < 10) {
+    return json({ ok: false, error: "Please add your name and a 10-digit mobile number." }, 400);
+  }
+  const raw = Array.isArray(data.items) ? data.items.slice(0, 30) : [];
+  const items = raw.map((r) => ({
+    series: clean(r.series, 60), denomination: clean(r.denomination, 40),
+    faceValueGB: parseFloat(r.faceValueGB), quantity: Math.max(1, Math.min(999, parseInt(r.quantity, 10) || 1)),
+  })).filter((i) => i.series && i.denomination && i.faceValueGB > 0);
+  if (!items.length) return json({ ok: false, error: "Your cart is empty." }, 400);
+
+  const totalQty = items.reduce((s, i) => s + i.faceValueGB * i.quantity, 0);
+  let estimate = "";
+  try {
+    const daily = await getLockedDailyRate(env);
+    if (daily) {
+      let pc = ladderCents(totalQty, Math.round(daily * 100));
+      let promo = null;
+      if (data.code) promo = await lookupDiscountCode(env, data.code);
+      if (promo) pc = Math.max(Math.round(daily * 100), Math.round(pc * (1 - promo.discount_bps / 10000)));
+      const sub = items.reduce((s, i) => s + Math.round(i.faceValueGB * pc) * i.quantity, 0);
+      estimate = " | est. $" + (sub / 100).toFixed(2) + " before tax ($" + (pc / 100).toFixed(2) + "/GB" + (promo ? ", code " + promo.code : "") + ")";
+    }
+  } catch (e) { console.log("reserve estimate failed:", e.message); }
+
+  const list = items.map((i) => i.quantity + "x " + i.series + " " + i.denomination).join(", ");
+  const interest = "RESERVE, pay at pickup: " + list + " (" + Math.round(totalQty * 100) / 100 + " GB)" + estimate + (note ? " | Note: " + note : "");
+  const contact = phone + (email ? " / " + email : "");
+  try {
+    await env.DB.prepare("INSERT INTO leads (name, contact, interest, best_time, source_page) VALUES (?1, ?2, ?3, ?4, ?5)")
+      .bind(name, contact, interest, when || null, "reserve-pickup").run();
+  } catch (err) {
+    console.log("reserve insert failed:", err.message);
+    return json({ ok: false, error: "Something went wrong saving your reservation." }, 500);
+  }
+  ctx.waitUntil(notify(env, { name, contact, interest, bestTime: when, sourcePage: "Website reservation (pay at pickup)" }));
+  return json({ ok: true });
 }
