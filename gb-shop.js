@@ -159,6 +159,19 @@
     '.gbx-back{background:none;border:0;color:var(--gbx-mute);font:600 .85rem Arial;cursor:pointer;padding:.9rem 0 0}',
     '.gbx-done{text-align:center;padding:2.5rem .5rem}.gbx-done .ic{width:68px;height:68px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:rgba(46,125,50,.2);color:#81c784}',
     '.gbx-done .ic svg{width:34px;height:34px}.gbx-done h4{font:700 1.3rem Georgia,serif;color:var(--gbx-gold2);margin:1rem 0 .5rem}.gbx-done p{color:var(--gbx-mute);font-size:.92rem;line-height:1.5}',
+    '.gbx-sheet-bg{position:fixed;inset:0;background:rgba(5,4,2,.6);z-index:2100;display:flex;align-items:flex-end;justify-content:center}',
+    '.gbx-sheet{background:var(--gbx-bg);color:var(--gbx-cream);width:min(520px,100vw);max-height:92vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:1.1rem 1.25rem calc(1.2rem + env(safe-area-inset-bottom));font-family:Arial,Helvetica,sans-serif;animation:gbxUp .28s cubic-bezier(.2,.8,.2,1)}',
+    '@media(min-width:700px){.gbx-sheet-bg{align-items:center}.gbx-sheet{border-radius:16px}}',
+    '@keyframes gbxUp{from{transform:translateY(40px);opacity:0}}',
+    '.gbx-sheet .top{display:flex;gap:.9rem;align-items:center}.gbx-sheet .top img{width:64px;height:86px;object-fit:cover;border-radius:6px;border:1px solid var(--gbx-line)}',
+    '.gbx-sheet h4{margin:0;font:700 1.15rem Georgia,serif;color:var(--gbx-gold2)}.gbx-sheet .top p{margin:.2rem 0 0;color:var(--gbx-mute);font-size:.82rem}',
+    '.gbx-sheet .why{margin:1rem 0 .2rem;padding:.75rem .85rem;border-radius:10px;background:var(--gbx-card);border:1px solid var(--gbx-line);font-size:.84rem;line-height:1.5;color:#e6dcc4}',
+    '.gbx-sheet .qrow{display:flex;align-items:center;justify-content:space-between;margin-top:1rem}',
+    '.gbx-sheet .qrow span{font:700 .74rem Arial;letter-spacing:.06em;text-transform:uppercase;color:var(--gbx-mute)}',
+    '.gbx-sheet .close{float:right;background:none;border:0;color:var(--gbx-mute);font-size:1.7rem;line-height:1;cursor:pointer;margin:-.3rem -.3rem 0 0}',
+    '.gbx-tag-low{display:inline-block;margin-left:.35rem;background:#fff1d6;color:#9a5b00;font:700 .7rem Arial;text-transform:uppercase;letter-spacing:.03em;padding:.2rem .5rem;border-radius:12px}',
+    '.gbx-req-btn{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;margin-top:.55rem;min-height:2.4rem;border:1.5px solid #c9a24a;border-radius:8px;background:#fff;color:#7a5600;font:700 .85rem Arial;cursor:pointer}',
+    '.gbx-req-btn:hover{background:#fff6dc}',
     'body.gbx-noscroll{overflow:hidden}'
   ].join('\n');
   var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
@@ -398,7 +411,100 @@
     if (window.matchMedia('(min-width: 900px)').matches) openDrawer();
   });
 
-  window.GBCart = { get: getCart, setQty: setQtyFor, open: openDrawer, onChange: function (f) { listeners.push(f); } };
+  // ---------- live stock (from the Goldbacks app inventory) ----------
+  var STOCK = null, stockCbs = [], stockLoading = false;
+  function normSeries(n) { n = String(n || '').toLowerCase().replace(/\s+/g, ' ').trim(); return ({ 'utah 2026': 'utah refresh', 'utah refresh series': 'utah refresh' })[n] || n; }
+  function normDen(d) { return String(d || '').replace(/\s*gb$/i, '').replace(/&frac14;/g, '¼').replace(/&frac12;/g, '½').trim(); }
+  function loadStock(cb) {
+    if (STOCK) return cb(STOCK); stockCbs.push(cb); if (stockLoading) return; stockLoading = true;
+    fetch('/api/stock', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return {}; }).then(function (d) {
+      var map = {};
+      (d && Array.isArray(d.stock) ? d.stock : []).forEach(function (s) { map[normSeries(s.name)] = { counts: s.counts || {}, min: s.min || 0 }; });
+      STOCK = { map: map, live: Object.keys(map).length > 0 };
+      stockCbs.splice(0).forEach(function (f) { f(STOCK); });
+    });
+  }
+  // fallback = what the page lists ('in' or 'req'). Returns {s:'in'|'low'|'req', n}
+  function stockStatus(series, den, fallback) {
+    var e = STOCK && STOCK.map[normSeries(series)];
+    if (!e) return { s: fallback || 'req' };
+    var n = parseInt(e.counts[normDen(den)], 10) || 0;
+    if (n <= 0) return { s: 'req', n: 0 };
+    return { s: n <= 3 ? 'low' : 'in', n: n };
+  }
+
+  // ---------- special-order request sheet ----------
+  function requestItem(it) {
+    var bg = document.createElement('div'); bg.className = 'gbx-sheet-bg';
+    var q = it.quantity || 1, md = it.mode || 'special';
+    var name0 = it.title || (it.series + ' ' + normDen(it.denomination) + ' GB Goldback');
+    var COPY = {
+      special: { h: 'Special order', why: 'We don\'t have this one on hand right now. We\'ll order it for you from Goldback Inc. and text you when it\'s ready. <b style="color:#FDDD3B">Nothing is charged now.</b>', btn: 'Request Special Order', done: 'Request sent!', doneP: 'once it\'s ordered.' },
+      soon: { h: 'Join the list', why: 'This one isn\'t released yet. We\'ll save your spot and text you as soon as it arrives. <b style="color:#FDDD3B">Nothing is charged now.</b>', btn: 'Join the List', done: 'You\'re on the list!', doneP: 'as soon as it arrives.' },
+      quote: { h: 'Ask for price', why: 'This item is priced one by one. We\'ll text you today\'s price and when it can be ready. <b style="color:#FDDD3B">No obligation.</b>', btn: 'Text Me the Price', done: 'Got it!', doneP: 'with today\'s price.' }
+    }[md] || {};
+    bg.innerHTML = '<div class="gbx-sheet" role="dialog" aria-label="Special order"><button type="button" class="close" aria-label="Close">&times;</button>' +
+      '<div class="top">' + (it.img ? '<img src="' + esc(it.img) + '" alt="">' : '') + '<div><h4>' + COPY.h + '</h4><p>' + esc(name0) + '</p></div></div>' +
+      '<div class="why">' + COPY.why + '</div>' +
+      '<div class="qrow"><span>How many?</span><div class="gbx-qs"><button type="button" data-a="-1">&minus;</button><input type="number" inputmode="numeric" min="1" max="999" value="' + q + '"><button type="button" data-a="1">+</button></div></div>' +
+      '<form class="gbx-form" novalidate><label>Your name</label><input class="n" autocomplete="name"><label>Mobile number</label><input class="p" type="tel" inputmode="tel" autocomplete="tel" placeholder="(619) 555-0123">' +
+      '<label>Email <span class="opt">(optional)</span></label><input class="e" type="email" autocomplete="email"><input type="text" class="hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true"></form>' +
+      '<button type="button" class="gbx-go">' + ICON.check + ' ' + COPY.btn + '</button><div class="gbx-err" hidden></div>' +
+      '<div class="gbx-help">Questions? Call or text <a href="' + PHONE_HREF + '">' + PHONE + '</a></div></div>';
+    document.body.appendChild(bg); document.body.classList.add('gbx-noscroll');
+    var sh = bg.firstChild, inp = sh.querySelector('.gbx-qs input');
+    function close() { bg.remove(); if (drawer.hidden) document.body.classList.remove('gbx-noscroll'); }
+    bg.onclick = function (e) { if (e.target === bg) close(); };
+    sh.querySelector('.close').onclick = close;
+    sh.querySelectorAll('.gbx-qs button').forEach(function (b) { b.onclick = function () { inp.value = Math.max(1, Math.min(999, (parseInt(inp.value, 10) || 1) + (+b.dataset.a))); }; });
+    var go = sh.querySelector('.gbx-go'), er = sh.querySelector('.gbx-err');
+    go.onclick = function () {
+      var name = sh.querySelector('.n').value.trim(), phone = sh.querySelector('.p').value.trim();
+      if (!name || phone.replace(/\D/g, '').length < 10) { er.textContent = 'Please add your name and a 10-digit mobile number.'; er.hidden = false; return; }
+      go.disabled = true; go.textContent = 'Sending…'; er.hidden = true;
+      fetch('/api/reserve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        special: true, kind: md, title: name0, name: name, phone: phone, email: sh.querySelector('.e').value.trim(), company: sh.querySelector('.hp').value,
+        items: [{ series: it.series, denomination: it.title ? it.title : normDen(it.denomination) + ' GB', faceValueGB: it.faceValueGB || 0, quantity: Math.max(1, parseInt(inp.value, 10) || 1) }]
+      }) }).then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.ok) throw new Error(d.error || 'Could not send.');
+        sh.innerHTML = '<div class="gbx-done"><div class="ic">' + ICON.check + '</div><h4>' + COPY.done + '</h4><p>Thanks, ' + esc(name.split(' ')[0]) + '. Art will text you at <b style="color:#FAF6EC">' + esc(phone) + '</b> about your ' + esc(name0) + ' ' + COPY.doneP + '</p><button type="button" class="gbx-alt" style="margin-top:1rem">Keep browsing</button></div>';
+        sh.querySelector('.gbx-alt').onclick = close;
+      }).catch(function (e) { go.disabled = false; go.innerHTML = ICON.check + ' ' + COPY.btn; er.textContent = (e.message || 'Could not send.') + ' Or call ' + PHONE + '.'; er.hidden = false; });
+    };
+  }
+
+  // ---------- series pages: apply live stock to each card ----------
+  var SLUGS = { 'arizona': 'Arizona', 'california': 'California', 'florida': 'Florida', 'idaho': 'Idaho', 'nevada': 'Nevada', 'new-hampshire': 'New Hampshire', 'oklahoma': 'Oklahoma', 'south-dakota': 'South Dakota', 'utah-refresh': 'Utah Refresh', 'utah': 'Utah', 'wyoming': 'Wyoming' };
+  var slugM = location.pathname.match(/\/series\/([a-z-]+?)(?:\.html)?$/), pageSeries = slugM && SLUGS[slugM[1]];
+  if (pageSeries && document.querySelector('.denom-card')) loadStock(function () {
+    document.querySelectorAll('.denom-card').forEach(function (card) {
+      var lab = card.querySelector('.denom-label'); if (!lab || /,/.test(lab.textContent)) return;
+      var den = normDen(lab.textContent), tag = card.querySelector('.status-tag'), row = card.querySelector('.buy-row');
+      var st = stockStatus(pageSeries, den, row ? 'in' : 'req'), img = card.querySelector('img');
+      var face = den === '¼' ? 0.25 : den === '½' ? 0.5 : parseFloat(den);
+      if (st.s === 'req') {
+        if (row) row.style.display = 'none';
+        if (tag) { tag.className = 'status-tag on-request'; tag.textContent = 'Special order'; }
+        if (!card.querySelector('.gbx-req-btn')) {
+          var b = document.createElement('button'); b.type = 'button'; b.className = 'gbx-req-btn'; b.innerHTML = 'Request special order';
+          b.onclick = function () { requestItem({ series: pageSeries, denomination: den, faceValueGB: face, img: img && img.getAttribute('src') }); };
+          (card.querySelector('.denom-body') || card).appendChild(b);
+        }
+      } else {
+        if (tag) { tag.className = 'status-tag in-stock'; tag.textContent = 'In stock'; }
+        if (st.s === 'low' && tag && !card.querySelector('.gbx-tag-low')) tag.insertAdjacentHTML('afterend', '<span class="gbx-tag-low">Only ' + st.n + ' left</span>');
+        if (!row) {
+          var body = card.querySelector('.denom-body') || card;
+          body.insertAdjacentHTML('beforeend', '<div class="buy-row gbx-row" data-series="' + esc(pageSeries) + '" data-denomination="' + esc(den) + ' GB" data-face-value="' + face + '"><div class="gbx-step"><button type="button" aria-label="Less">&minus;</button><input type="number" class="buy-qty" value="1" min="1" max="999" inputmode="numeric"><button type="button" aria-label="More">+</button></div><button type="button" class="btn btn-gold buy-btn">' + ICON.bag + ' Add to Cart</button></div>');
+          var nr = body.querySelector('.buy-row'), q = nr.querySelector('.buy-qty'), bs = nr.querySelectorAll('.gbx-step button');
+          bs[0].onclick = function () { q.value = Math.max(1, (parseInt(q.value, 10) || 1) - 1); };
+          bs[1].onclick = function () { q.value = Math.min(999, (parseInt(q.value, 10) || 1) + 1); };
+        }
+      }
+    });
+  });
+
+  window.GBCart = { loadStock: loadStock, stockStatus: stockStatus, request: requestItem, get: getCart, setQty: setQtyFor, open: openDrawer, onChange: function (f) { listeners.push(f); } };
 
   if (/[?&]cart=open/.test(location.search)) setTimeout(openDrawer, 300);
   renderBadge();

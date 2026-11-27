@@ -29,6 +29,10 @@ export default {
     }
 
     // Scratch & Win discount codes (moved here from app.goldenbeemalaj.com)
+    if (url.pathname === "/api/stock") {
+      const st = await readStock(env);
+      return new Response(JSON.stringify({ stock: st ? st.list : [], updated: st ? st.updated : null }), { headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60" } });
+    }
     if (url.pathname === "/api/reserve" && request.method === "POST") {
       return handleReserve(request, env, ctx);
     }
@@ -429,6 +433,21 @@ async function handleCheckout(request, env) {
       return json({ ok: false, error: "Missing or invalid product details." }, 400);
     }
     items.push({ series, denomination, faceValueGB, quantity });
+  }
+
+  // Live stock from the Goldbacks app: block online payment for items we don't have on hand
+  const stock = await readStock(env);
+  if (stock) {
+    for (const it of items) {
+      const e = stock.map[normSeries(it.series)];
+      if (!e) continue;
+      const have = parseInt(e.counts[normDen(it.denomination)], 10) || 0;
+      if (have < it.quantity) {
+        return json({ ok: false, error: have > 0
+          ? "Only " + have + " of " + it.series + " " + it.denomination + " left. Lower the quantity, or reserve it."
+          : it.series + " " + it.denomination + " just went to special order. Remove it from your cart and request it instead." }, 400);
+      }
+    }
   }
 
   if (!env.STRIPE_SECRET_KEY) {
@@ -1191,8 +1210,8 @@ async function handleReserve(request, env, ctx) {
   const raw = Array.isArray(data.items) ? data.items.slice(0, 30) : [];
   const items = raw.map((r) => ({
     series: clean(r.series, 60), denomination: clean(r.denomination, 40),
-    faceValueGB: parseFloat(r.faceValueGB), quantity: Math.max(1, Math.min(999, parseInt(r.quantity, 10) || 1)),
-  })).filter((i) => i.series && i.denomination && i.faceValueGB > 0);
+    faceValueGB: Math.max(0, parseFloat(r.faceValueGB) || 0), quantity: Math.max(1, Math.min(999, parseInt(r.quantity, 10) || 1)),
+  })).filter((i) => i.series && i.denomination && (i.faceValueGB > 0 || data.special));
   if (!items.length) return json({ ok: false, error: "Your cart is empty." }, 400);
 
   const totalQty = items.reduce((s, i) => s + i.faceValueGB * i.quantity, 0);
@@ -1210,15 +1229,32 @@ async function handleReserve(request, env, ctx) {
   } catch (e) { console.log("reserve estimate failed:", e.message); }
 
   const list = items.map((i) => i.quantity + "x " + i.series + " " + i.denomination).join(", ");
-  const interest = "RESERVE, pay at pickup: " + list + " (" + Math.round(totalQty * 100) / 100 + " GB)" + estimate + (note ? " | Note: " + note : "");
+  const kindLabel = { soon: "WAITLIST (not released yet): ", quote: "PRICE REQUEST: ", special: "SPECIAL ORDER request: " }[data.kind] || (data.special ? "SPECIAL ORDER request: " : "RESERVE, pay at pickup: ");
+  if (data.special && data.kind !== "special" && data.kind) estimate = "";
+  const interest = kindLabel + list + " (" + Math.round(totalQty * 100) / 100 + " GB)" + estimate + (note ? " | Note: " + note : "");
   const contact = phone + (email ? " / " + email : "");
   try {
     await env.DB.prepare("INSERT INTO leads (name, contact, interest, best_time, source_page) VALUES (?1, ?2, ?3, ?4, ?5)")
-      .bind(name, contact, interest, when || null, "reserve-pickup").run();
+      .bind(name, contact, interest, when || null, data.special ? "special-order" : "reserve-pickup").run();
   } catch (err) {
     console.log("reserve insert failed:", err.message);
     return json({ ok: false, error: "Something went wrong saving your reservation." }, 500);
   }
-  ctx.waitUntil(notify(env, { name, contact, interest, bestTime: when, sourcePage: "Website reservation (pay at pickup)" }));
+  ctx.waitUntil(notify(env, { name, contact, interest, bestTime: when, sourcePage: data.special ? "Website special order" : "Website reservation (pay at pickup)" }));
   return json({ ok: true });
+}
+
+// Stock published by the Goldbacks app (shared D1 table gb_public, key 'site').
+function normSeries(n) { n = String(n || "").toLowerCase().replace(/\s+/g, " ").trim(); return ({ "utah 2026": "utah refresh" })[n] || n; }
+function normDen(d) { return String(d || "").replace(/\s*gb$/i, "").trim(); }
+async function readStock(env) {
+  try {
+    const row = await env.DB.prepare("SELECT v, updated FROM gb_public WHERE k = 'site'").first();
+    if (!row) return null;
+    const list = (JSON.parse(row.v).stock || []);
+    if (!Array.isArray(list) || !list.length) return null;
+    const map = {};
+    list.forEach((x) => { map[normSeries(x.name)] = x; });
+    return { list, map, updated: row.updated };
+  } catch (e) { return null; }
 }
