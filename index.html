@@ -110,6 +110,16 @@
   @media (max-width: 800px) { .coming-soon-grid { grid-template-columns: 1fr; } }
 
   /* How to order */
+  .local { background: var(--dark-2); color: var(--cream); }
+  .local-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; max-width:1050px; margin:0 auto; }
+  .local-card { border:1px solid rgba(218,153,0,.35); border-radius:12px; padding:1.1rem; background:rgba(255,255,255,.03); font-family:Arial,Helvetica,sans-serif; }
+  .local-card b { display:block; color:#FDDD3B; font-size:1rem; margin-bottom:.35rem; }
+  .local-card span { color:#cfc3a8; font-size:.9rem; line-height:1.45; }
+  .local-faq { max-width:760px; margin:1.6rem auto 0; text-align:center; color:#cfc3a8; font-size:.95rem; line-height:1.55; }
+  .local-faq b { color:#FAF6EC; }
+  .local-faq a { color:#FDDD3B; }
+  @media (max-width: 860px) { .local-grid { grid-template-columns:1fr 1fr; } }
+  @media (max-width: 520px) { .local-grid { grid-template-columns:1fr; } }
   .order { background: var(--dark-2); color: var(--cream); }
   .order .section-title { color: var(--gold-light); }
   .order .section-sub { color: #cfc6b0; }
@@ -292,6 +302,12 @@
   }
 </style>
 <script defer src="/ticker.js"></script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Store","name":"Goldenbee MALAJ Jewelry LLC","url":"https://goldenbeemalaj.com/","telephone":"+1-619-504-8977","email":"goldenbeemalajjewelry@gmail.com","image":"https://goldenbeemalaj.com/images/brand/goldenbee-malaj-logo.jpg","description":"San Diego's official Goldback distributor. Goldbacks from every state and size, with free local pickup in San Diego and insured shipping.","address":{"@type":"PostalAddress","addressLocality":"San Diego","addressRegion":"CA","addressCountry":"US"},"areaServed":[{"@type":"City","name":"San Diego"},{"@type":"AdministrativeArea","name":"San Diego County"}],"sameAs":["https://g.page/r/CdyNEy4nzc_kEBM"]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Where can I get Goldbacks in San Diego?","acceptedAnswer":{"@type":"Answer","text":"Goldenbee MALAJ is San Diego's official Goldback distributor. Browse every state and size at goldenbeemalaj.com/shop, then pick up free in San Diego or get insured shipping."}}]}
+</script>
 </head>
 <body>
 
@@ -631,6 +647,20 @@
     <p>Goldenbee MALAJ Jewelry LLC is owned and operated by Arturo Delgado Mora and Martha Luz Diaz Perez. We specialize in the direct retail of Goldbacks — a modern, physical gold product made with vacuum-deposited 24-karat gold.</p>
     <p>As an <strong>Official Authorized Distributor for Goldback Inc.</strong>, we're part of a nationwide movement bringing real gold back into everyday commerce — and we're proud to serve our San Diego community in person. Learn more about Goldbacks directly from the manufacturer at <a href="https://www.goldback.com" target="_blank" rel="noopener noreferrer">goldback.com</a>.</p>
   </div>
+</section>
+
+<section class="local" id="san-diego">
+  <h2 class="section-title">Goldbacks in San Diego</h2>
+  <hr class="gold-rule">
+  <p class="section-sub">Goldenbee MALAJ is San Diego's official Goldback distributor. Get your Goldbacks locally from a real person, not a website across the country.</p>
+  <div class="local-grid">
+    <div class="local-card"><b>Free local pickup</b><span>Exchange online or reserve, then pick up in San Diego. We text you to set a time.</span></div>
+    <div class="local-card"><b>Official distributor</b><span>Every Goldback comes straight from Goldback Inc. through us.</span></div>
+    <div class="local-card"><b>Every state, every size</b><span>Nevada 2026, California, Idaho, Utah and more, from &frac14; to 50 Goldbacks. Special orders welcome.</span></div>
+    <div class="local-card"><b>Serving all of San Diego County</b><span>Local pickup in San Diego, plus insured shipping anywhere in the U.S.</span></div>
+  </div>
+  <p class="local-faq"><b>Where can I get Goldbacks in San Diego?</b> Right here. Browse the <a href="/shop">Shop</a>, then pick up free in San Diego or have them shipped. Questions? Call or text <a href="tel:+16195048977">(619) 504-8977</a>.</p>
+  <p style="text-align:center;margin:1.4rem 0 0"><a class="btn btn-gold" href="/shop">Shop Goldbacks</a></p>
 </section>
 
 <section class="gbc-review" id="review">
